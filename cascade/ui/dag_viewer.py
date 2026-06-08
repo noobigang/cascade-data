@@ -306,20 +306,18 @@ def render_dag(
             node_id,
             label=label,
             title=title,
-            color=color,
+            color={
+                "background": color,
+                "border": "#30363D",
+                "highlight": {"background": color, "border": "#58A6FF"},
+                "hover": {"background": color, "border": "#58A6FF"},
+            },
             size=size,
             shape=shape,
-            font_color="#E6EDF3",
+            font={"color": "#E6EDF3", "size": 14},
             borderWidth=2,
             borderWidthSelected=4,
-            # Glow via shadow
-            shadow={
-                "enabled": True,
-                "color": glow,
-                "size": "20" if is_highlighted else "12",
-                "x": 0,
-                "y": 4,
-            },
+            shadow={"enabled": True, "color": glow, "size": "20" if is_highlighted else "12", "x": 0, "y": 4},
         )
 
     # Add edges

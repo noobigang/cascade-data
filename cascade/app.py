@@ -496,7 +496,7 @@ init_state()
 def _restore_from_url():
     """Decode state from URL params and restore session."""
     try:
-        query_params = st.experimental_get_query_params()
+        query_params = st.query_params
         state = extract_state_from_url(query_params)
         if state:
             st.session_state.selected_node = state.get("selected_node")
@@ -508,7 +508,7 @@ def _restore_from_url():
 
 _restore_from_url()
 
-# ── Demo loader ─────────────────────────────────────────────────────────
+# ── Demo loader (runs after init_state so button flag persists) ─────────
 DEMO_MANIFEST_PATH = REPO_ROOT / "demo" / "manifest.json"
 if st.session_state.get("load_demo") and DEMO_MANIFEST_PATH.exists():
     try:

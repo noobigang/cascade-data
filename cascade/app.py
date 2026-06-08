@@ -3,6 +3,14 @@ Cascade — Data Lineage & Impact Analysis
 Streamlit application entrypoint — dark-themed with glow effects.
 """
 
+import sys
+from pathlib import Path
+
+# Add repo root so 'cascade' subdirectory is importable on Streamlit Cloud
+FILE = Path(__file__).resolve()
+REPO_ROOT = FILE.parent.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 import networkx as nx
 import streamlit as st

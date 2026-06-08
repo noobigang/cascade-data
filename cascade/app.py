@@ -647,6 +647,17 @@ with st.sidebar:
     )
     st.divider()
 
+    # ── Try Demo ─────────────────────────────────────────────────────────
+    DEMO_MANIFEST_PATH = REPO_ROOT / "demo" / "manifest.json"
+    if DEMO_MANIFEST_PATH.exists():
+        if st.button("🎲 Try Demo", use_container_width=True, type="primary"):
+            import json
+            with open(DEMO_MANIFEST_PATH, encoding="utf-8") as f:
+                demo_data = json.load(f)
+            st.session_state.manifest = demo_data
+            st.session_state.loading = True
+            st.rerun()
+
     # ── Upload section (collapsible) ─────────────────────────────────────
     with st.expander("📦 Upload manifest", expanded=not has_dag):
         uploader = UploadZone()

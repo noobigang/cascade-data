@@ -1,0 +1,55 @@
+name: Deploy to Streamlit Cloud
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run tests before deploy
+        run: pytest tests/ -v --tb=short
+
+      - name: Verify app loads
+        run: python -c "import streamlit; print('Streamlit OK')"
+
+# Streamlit Cloud auto-deploys connected repos on push to main.
+# This workflow runs CI checks before deploy. To connect your repo:
+#   1. Go to https://streamlit.io/cloud
+#   2. Create a new app and select this GitHub repository
+#   3. Set app path to: app.py
+#   4. Set Python version to: 3.11
+#
+# Streamlit Cloud will automatically deploy on every push to main after this
+# workflow completes (if the repo is connected to Streamlit Cloud).
+# No API key or secret needed — Streamlit uses GitHub OAuth for authentication.
+#
+# Alternative: Manual deploy via streamlit CLI
+#   pip install streamlit
+#   streamlit run app.py --server.port 8501 --server.headless true

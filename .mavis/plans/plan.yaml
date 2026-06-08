@@ -1,0 +1,360 @@
+﻿version: 1
+plan:
+  name: Build Cascade MVP
+  max_concurrency: 4
+  max_consecutive_failures: 2
+  max_cycles: 10
+  auto_reject_retries: 1
+
+tasks:
+  - id: parser-graph
+    title: parser + graph builder
+    prompt: |
+      You are building the data-layer of **Cascade**, an open-source data lineage tool.
+
+      WORKING DIRECTORY: C:\Users\mrham\.mavis\sessions\mvs_bdf526f4764c45a1ab5698fa4265cada\workspace\cascade-data\
+
+      READ FIRST: Read SPEC.md (in the working directory) for full context.
+
+      ## Your deliverable
+
+      Create these files under `cascade/`:
+      - `cascade/__init__.py` — empty
+      - `cascade/parser/__init__.py`
+      - `cascade/parser/manifest_parser.py` — parse `manifest.json` (from `dbt build`'s `target/manifest.json`). Extract:
+        - All `nodes` with `resource_type` in (model, source, seed)
+        - Each node's `columns` dict (name → {dtype, description, tests})
+        - Each node's `depends_on` (list of parent node unique_ids)
+        - Build a flat list of `ModelNode` dataclasses: name, unique_id, schema, description, columns (dict), depends_on (list)
+      - `cascade/graph/__init__.py`
+      - `cascade/graph/lineage_graph.py` — Build a `networkx.DiGraph` from the parsed manifest:
+        - Nodes: model unique_ids
+        - Edges: parent → child relationships (from `depends_on`)
+        - Store column info as node attributes
+        - Include both model-level and column-level edges
+      - `cascade/graph/impact_analyzer.py` — Blast-radius analysis:
+        - `get_downstream_nodes(graph, node_id)` — BFS to find all downstream models
+        - `get_upstream_nodes(graph, node_id)` — reverse BFS
+        - `get_downstream_columns(graph, node_id, column_name)` — column-level downstream
+        - `get_upstream_columns(graph, node_id, column_name)` — column-level upstream
+        - `blast_radius_score(graph, node_id)` — count terminal downstream nodes → return LOW/MEDIUM/HIGH
+        - `get_column_lineage(graph, node_id, column_name)` — trace full column lineage path
+
+      ## Key constraints
+      - Use Python 3, `networkx`, `dataclasses`
+      - Handle missing columns gracefully (skip with warning)
+      - dbt manifest.json schema: nodes stored in `manifest["nodes"]`, each node has `unique_id`, `name`, `resource_type`, `columns`, `depends_on.nodes`, `description`, `schema`
+      - Node `resource_type` values: `model`, `source`, `seed`
+      - For column-level: resolve refs by matching column names in parent node's `columns` dict
+      - Return `None` for missing nodes instead of crashing
+
+      ## What to produce
+      - Write all files under `cascade/parser/` and `cascade/graph/`
+      - No Streamlit, no HTTP, pure data layer
+      - Stop when all files are written and tested (you can write a small test at the bottom of each module)
+
+      Report: list of files created and any design decisions made.
+    assigned_to: general
+    verified_by: verifier
+    verify_prompt: |
+      Verify the parser-graph deliverable at C:\Users\mrham\.mavis\sessions\mvs_bdf526f4764c45a1ab5698fa4265cada\workspace\cascade-data\
+
+      Run these checks:
+      1. Read `cascade/parser/manifest_parser.py` — confirm it has ModelNode dataclass and parse_manifest() function that handles the dbt manifest schema
+      2. Read `cascade/graph/lineage_graph.py` — confirm it builds a networkx DiGraph with nodes=model unique_ids, edges from depends_on
+      3. Read `cascade/graph/impact_analyzer.py` — confirm it has get_downstream_nodes, blast_radius_score, get_column_lineage functions
+      4. Check that all files exist: cascade/__init__.py, cascade/parser/__init__.py, cascade/parser/manifest_parser.py, cascade/graph/__init__.py, cascade/graph/lineage_graph.py, cascade/graph/impact_analyzer.py
+      5. Try importing the modules: `python -c "import sys; sys.path.insert(0,'.'); from cascade.parser.manifest_parser import parse_manifest; from cascade.graph.impact_analyzer import blast_radius_score; print('OK')"`
+
+      PASS if: all files exist, imports succeed, functions are present and match the spec.
+      FAIL if: any file missing, import fails, function missing or obviously wrong signature.
+    max_retries: 2
+
+  - id: ui-app
+    title: Streamlit app + UI
+    prompt: |
+      You are building the UI layer of **Cascade**, an open-source data lineage tool.
+
+      WORKING DIRECTORY: C:\Users\mrham\.mavis\sessions\mvs_bdf526f4764c45a1ab5698fa4265cada\workspace\cascade-data\
+
+      READ FIRST: Read SPEC.md (in the working directory) for full context on design language, layout, and features.
+
+      ## Your deliverable
+
+      Create these files under `cascade/`:
+      - `cascade/ui/__init__.py`
+      - `cascade/ui/upload_zone.py` — Drag-and-drop manifest.json upload widget
+        - Accept `.json` files
+        - Show file name and size after upload
+        - Return the parsed manifest dict
+      - `cascade/ui/dag_viewer.py` — PyVis DAG renderer
+        - Takes a networkx DiGraph
+        - Renders interactive PyVis HTML in Streamlit
+        - Node colors by resource_type (model=blue, source=teal, seed=gray)
+        - Node size proportional to downstream count (use pyvis degree)
+        - Enable physics toggle, enable search box
+      - `cascade/ui/search_panel.py` — Impact search panel
+        - Input: model name or `model.column` string
+        - Shows: upstream/downstream count, blast radius score (🟢/🟡/🔴), top 5 downstream models
+        - Column-level: show column lineage paths
+      - `cascade/ui/detail_panel.py` — Model detail panel
+        - Slide-up panel (st.expander or st.sidebar)
+        - Shows: model name, schema, description, column list with dtypes
+        - Upstream models, downstream models
+      - `cascade/app.py` — Main Streamlit app
+        - Header: logo text "Cascade" + "Open Source" badge + GitHub link
+        - Dark theme (page_config: initial_sidebar_state=expanded, theme: dark)
+        - Upload zone at top
+        - Sidebar: model search, filter by type, stats panel (total models, sources, edges)
+        - Main area: PyVis DAG viewer
+        - On node click: show detail panel
+        - Impact search bar at top of main area
+        - Footer: Hugging Face Spaces attribution
+
+      ## Design
+      - Dark theme: background `#0D1117`, surface `#161B22`, borders `#30363D`
+      - Font: JetBrains Mono for headings, Inter for body (use @import in custom CSS)
+      - Phosphor icons for UI elements
+      - DAG nodes: circles with glow effect
+
+      ## Key constraints
+      - Streamlit app must be `cascade/app.py` (not `app.py` at root)
+      - All imports relative: `from cascade.ui.upload_zone import ...`
+      - PyVis HTML: use `streamlit.components.v1.html` to embed
+      - Handle empty DAG (no upload yet) gracefully — show placeholder message
+      - Do NOT call `NetworkVis(...).show()` — embed as HTML string instead
+      - The app should work with just `manifest.json` upload — no config needed
+
+      ## What to produce
+      - Write all files under `cascade/ui/` and `cascade/app.py`
+      - Stop when all files written
+
+      Report: list of files created and any design decisions made.
+    assigned_to: general
+    verified_by: verifier
+    verify_prompt: |
+      Verify the UI/app deliverable at C:\Users\mrham\.mavis\sessions\mvs_bdf526f4764c45a1ab5698fa4265cada\workspace\cascade-data\
+
+      Run these checks:
+      1. Confirm all files exist: cascade/ui/__init__.py, cascade/ui/upload_zone.py, cascade/ui/dag_viewer.py, cascade/ui/search_panel.py, cascade/ui/detail_panel.py, cascade/app.py
+      2. Read cascade/app.py — confirm it is a Streamlit app with page_config dark theme, upload widget, DAG viewer placeholder, and sidebar
+      3. Read cascade/ui/dag_viewer.py — confirm it uses PyVis + streamlit.components.v1.html (not .show())
+      4. Read cascade/ui/upload_zone.py — confirm it accepts .json files and returns manifest dict
+      5. Read cascade/ui/search_panel.py — confirm it has impact search (model name + blast radius)
+      6. Check that cascade/app.py imports from cascade.ui modules (relative imports)
+
+      PASS if: all files exist, app.py is a valid Streamlit app, imports are relative to cascade package.
+      FAIL if: file missing, app.py does not look like a Streamlit app, wrong import paths.
+    max_retries: 2
+
+  - id: deployment
+    title: HF Spaces deployment config
+    prompt: |
+      You are setting up Hugging Face Spaces deployment for **Cascade**.
+
+      WORKING DIRECTORY: C:\Users\mrham\.mavis\sessions\mvs_bdf526f4764c45a1ab5698fa4265cada\workspace\cascade-data\
+
+      READ FIRST: Read SPEC.md (in the working directory) for full context.
+
+      ## Your deliverable
+
+      Create these files at the ROOT of the working directory:
+      - `requirements.txt` — Python dependencies:
+        ```
+        streamlit>=1.28
+        networkx>=3.2
+        pyvis>=0.3.1
+        pandas>=2.0
+        ```
+      - `README.md` — HF Spaces README:
+        - Title: Cascade — Column-Level Data Lineage
+        - Badge: Space type (Static), emoji 🧬
+        - Description: what it does, how to use (upload manifest.json from dbt project)
+        - Tech stack: Streamlit + NetworkX + PyVis
+        - License: MIT
+        - Link to GitHub: https://github.com/noobigang/cascade-data
+        - `---` frontmatter for HF Spaces: `title: Cascade`, `emoji: 🧬`, `sdk: static`, `color: 0d1117`
+      - `static` directory with `index.html` — minimal HTML that says "Cascade is deployed via Hugging Face Spaces. See README for build instructions." (since we use Static SDK which needs an index.html)
+      - `.gitignore`:
+        ```
+        __pycache__/
+        *.pyc
+        .venv/
+        venv/
+        .env
+        .streamlit/
+        target/       # dbt build output
+        *.manifest.json  # don't commit uploaded manifests
+        ```
+
+      ## What to produce
+      - All files at the working directory root
+      - Stop when all files written
+
+      Report: list of files created.
+    assigned_to: general
+    verify_skip_reason: Deployment config is a simple file-write task; downstream integration-test will catch any missing files. Final git push by owner is the human-in-the-loop closure.
+    max_retries: 1
+
+  - id: integration-test
+    title: Integration smoke test
+    prompt: |
+      Run the final integration smoke test for Cascade.
+
+      WORKING DIRECTORY: C:\Users\mrham\.mavis\sessions\mvs_bdf526f4764c45a1ab5698fa4265cada\workspace\cascade-data\
+
+      ## How to test
+
+      1. First create a minimal fake dbt manifest.json for testing:
+         Write this Python script to create `test_manifest.json`:
+         ```python
+         import json
+         manifest = {
+             "nodes": {
+                 "source.jaffle_shop.raw_orders": {
+                     "unique_id": "source.jaffle_shop.raw_orders",
+                     "name": "raw_orders",
+                     "resource_type": "source",
+                     "schema": "jaffle_shop",
+                     "description": "Raw orders table",
+                     "columns": {
+                         "id": {"name": "id", "description": "", "data_type": "integer"},
+                         "customer_id": {"name": "customer_id", "description": "", "data_type": "integer"},
+                         "amount": {"name": "amount", "description": "", "data_type": "float"},
+                         "order_date": {"name": "order_date", "description": "", "data_type": "date"}
+                     },
+                     "depends_on": {"nodes": []}
+                 },
+                 "model.jaffle_shop.staging_orders": {
+                     "unique_id": "model.jaffle_shop.staging_orders",
+                     "name": "staging_orders",
+                     "resource_type": "model",
+                     "schema": "jaffle_shop",
+                     "description": "Staging orders",
+                     "columns": {
+                         "id": {"name": "id", "description": "", "data_type": "integer"},
+                         "customer_id": {"name": "customer_id", "description": "", "data_type": "integer"},
+                         "amount": {"name": "amount", "description": "", "data_type": "float"},
+                         "order_date": {"name": "order_date", "description": "", "data_type": "date"}
+                     },
+                     "depends_on": {"nodes": ["source.jaffle_shop.raw_orders"]}
+                 },
+                 "model.jaffle_shop.mart_revenue": {
+                     "unique_id": "model.jaffle_shop.mart_revenue",
+                     "name": "mart_revenue",
+                     "resource_type": "model",
+                     "schema": "jaffle_shop",
+                     "description": "Revenue mart",
+                     "columns": {
+                         "total_revenue": {"name": "total_revenue", "description": "", "data_type": "float"},
+                         "order_count": {"name": "order_count", "description": "", "data_type": "integer"}
+                     },
+                     "depends_on": {"nodes": ["model.jaffle_shop.staging_orders"]}
+                 },
+                 "model.jaffle_shop.mart_customers": {
+                     "unique_id": "model.jaffle_shop.mart_customers",
+                     "name": "mart_customers",
+                     "resource_type": "model",
+                     "schema": "jaffle_shop",
+                     "description": "Customer mart",
+                     "columns": {
+                         "customer_id": {"name": "customer_id", "description": "", "data_type": "integer"},
+                         "lifetime_value": {"name": "lifetime_value", "description": "", "data_type": "float"}
+                     },
+                     "depends_on": {"nodes": ["model.jaffle_shop.staging_orders"]}
+                 }
+             }
+         }
+         with open('test_manifest.json', 'w') as f:
+             json.dump(manifest, f)
+         print("test_manifest.json created")
+         ```
+
+      2. Run: `python test_create_manifest.py` to generate test_manifest.json
+
+      3. Test the parser:
+         ```
+         python -c "
+         import json, sys
+         sys.path.insert(0, '.')
+         from cascade.parser.manifest_parser import parse_manifest
+         with open('test_manifest.json') as f:
+             data = json.load(f)
+         models = parse_manifest(data)
+         print(f'Parsed {len(models)} models')
+         for m in models:
+             print(f'  {m.name}: {len(m.columns)} columns, deps={m.depends_on}')
+         "
+         ```
+
+      4. Test the graph:
+         ```
+         python -c "
+         import json, sys
+         sys.path.insert(0, '.')
+         from cascade.parser.manifest_parser import parse_manifest
+         from cascade.graph.lineage_graph import build_lineage_graph
+         from cascade.graph.impact_analyzer import blast_radius_score, get_downstream_nodes
+         with open('test_manifest.json') as f:
+             data = json.load(f)
+         models = parse_manifest(data)
+         G = build_lineage_graph(models)
+         print(f'Graph: {G.number_of_nodes()} nodes, {G.number_of_edges()} edges')
+         staging = [n for n in G.nodes() if 'staging_orders' in n][0]
+         score = blast_radius_score(G, staging)
+         downstream = get_downstream_nodes(G, staging)
+         print(f'staging_orders: score={score}, downstream={downstream}')
+         "
+         ```
+
+      5. Test Streamlit import:
+         ```
+         python -c "import streamlit as st; st.set_option('server.headless', True); print('Streamlit import OK')"
+         ```
+
+      6. Check all required files exist:
+         - cascade/__init__.py
+         - cascade/app.py
+         - cascade/parser/manifest_parser.py
+         - cascade/graph/lineage_graph.py
+         - cascade/graph/impact_analyzer.py
+         - cascade/ui/upload_zone.py
+         - cascade/ui/dag_viewer.py
+         - cascade/ui/search_panel.py
+         - cascade/ui/detail_panel.py
+         - requirements.txt
+         - .gitignore
+         - README.md
+
+      7. Clean up test_manifest.json and test_create_manifest.py
+
+      ## PASS criteria
+      - Parser returns 4 models from test manifest
+      - Graph has 4+ nodes and 3+ edges
+      - blast_radius_score returns LOW/MEDIUM/HIGH for staging_orders
+      - get_downstream_nodes returns 2 downstream nodes for staging_orders
+      - Streamlit imports without error
+      - All required files exist
+      - Test files cleaned up
+
+      ## FAIL criteria
+      - Any Python import fails
+      - Parser returns < 4 models
+      - Graph has < 4 nodes or < 3 edges
+      - Any function crashes or returns wrong type
+      - Required file missing
+
+      Report: pass/fail for each check, error messages if any.
+    assigned_to: verifier
+    depends_on: [parser-graph, ui-app, deployment]
+    verified_by: verifier
+    verify_prompt: |
+      The integration-test task already ran the smoke tests and reported results. Your job is to independently re-verify the critical pass/fail checks:
+
+      1. Re-run the parser test: `python -c "import sys,json; sys.path.insert(0,'.'); from cascade.parser.manifest_parser import parse_manifest; m=parse_manifest(json.load(open('test_manifest.json'))); print(len(m))"` (creates test_manifest.json first using the manifest structure from the integration-test prompt)
+      2. Re-run the graph test: `python -c "import sys,json; sys.path.insert(0,'.'); from cascade.parser.manifest_parser import parse_manifest; from cascade.graph.lineage_graph import build_lineage_graph; from cascade.graph.impact_analyzer import blast_radius_score; m=parse_manifest(json.load(open('test_manifest.json'))); G=build_lineage_graph(m); print(G.number_of_nodes(), G.number_of_edges()); print(blast_radius_score(G, [n for n in G.nodes() if 'staging' in n][0]))"`
+      3. Confirm Streamlit import: `python -c "import streamlit; print('OK')"`
+      4. Confirm all required files exist
+
+      PASS if: all 4 checks pass independently. FAIL if: any check fails.
+    max_retries: 1

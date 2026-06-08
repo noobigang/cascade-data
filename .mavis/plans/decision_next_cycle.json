@@ -1,0 +1,28 @@
+﻿{
+    "plan_complete":  false,
+    "next_cycle":  [
+                       {
+                           "verdict":  "manual_retry",
+                           "id":  "visual-polish",
+                           "reason":  "Queue visual polish for cycle 2"
+                       },
+                       {
+                           "verdict":  "manual_retry",
+                           "id":  "docs-polish",
+                           "reason":  "Queue docs polish for cycle 2"
+                       },
+                       {
+                           "verdict":  "manual_retry",
+                           "id":  "demo-assets",
+                           "reason":  "Queue demo assets for cycle 2"
+                       },
+                       {
+                           "verdict":  "manual_retry",
+                           "id":  "ci-setup",
+                           "reason":  "Queue CI setup for cycle 2"
+                       }
+                   ],
+    "last_cycle":  [
+
+                   ]
+}

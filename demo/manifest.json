@@ -1,0 +1,322 @@
+{
+  "metadata": {
+    "dbt_schema_version": "https://schemas.getdbt.com/dbt/manifest/v11.json",
+    "dbt_version": "1.7.0",
+    "project_name": "ecommerce_analytics",
+    "generated_at": "2024-03-15T10:30:00Z"
+  },
+  "nodes": {
+    "source.ecommerce.raw_orders": {
+      "unique_id": "source.ecommerce.raw_orders",
+      "name": "raw_orders",
+      "resource_type": "source",
+      "schema": "ecommerce",
+      "description": "Raw orders table from Shopify API — contains all order records including cancelled and pending.",
+      "columns": {
+        "order_id": {"dtype": "varchar", "description": "Primary key — unique Shopify order ID"},
+        "customer_id": {"dtype": "varchar", "description": "Shopify customer ID"},
+        "order_date": {"dtype": "timestamp", "description": "When the order was placed"},
+        "status": {"dtype": "varchar", "description": "Order status: pending, fulfilled, cancelled, refunded"},
+        "total_amount": {"dtype": "decimal(10,2)", "description": "Total order amount in USD"},
+        "currency": {"dtype": "varchar", "description": "Currency code (USD, EUR, etc.)"},
+        "channel": {"dtype": "varchar", "description": "Sales channel: web, mobile, in_store"}
+      },
+      "depends_on": {"nodes": []}
+    },
+    "source.ecommerce.raw_customers": {
+      "unique_id": "source.ecommerce.raw_customers",
+      "name": "raw_customers",
+      "resource_type": "source",
+      "schema": "ecommerce",
+      "description": "Raw customer profiles from Shopify. Updated on each login or profile change.",
+      "columns": {
+        "customer_id": {"dtype": "varchar", "description": "Primary key — unique customer ID"},
+        "email": {"dtype": "varchar", "description": "Customer email address"},
+        "first_name": {"dtype": "varchar", "description": "Customer first name"},
+        "last_name": {"dtype": "varchar", "description": "Customer last name"},
+        "created_at": {"dtype": "timestamp", "description": "Account creation timestamp"},
+        "country": {"dtype": "varchar", "description": "ISO 3166-1 alpha-2 country code"},
+        "total_orders": {"dtype": "int", "description": "Lifetime order count"},
+        "total_spent": {"dtype": "decimal(12,2)", "description": "Lifetime spend in USD"}
+      },
+      "depends_on": {"nodes": []}
+    },
+    "source.ecommerce.raw_products": {
+      "unique_id": "source.ecommerce.raw_products",
+      "name": "raw_products",
+      "resource_type": "source",
+      "schema": "ecommerce",
+      "description": "Product catalog from Shopify. Includes variants and inventory levels.",
+      "columns": {
+        "product_id": {"dtype": "varchar", "description": "Primary key — Shopify product ID"},
+        "sku": {"dtype": "varchar", "description": "Stock Keeping Unit"},
+        "product_name": {"dtype": "varchar", "description": "Display name of the product"},
+        "category": {"dtype": "varchar", "description": "Product category"},
+        "price": {"dtype": "decimal(10,2)", "description": "Unit price in USD"},
+        "cost": {"dtype": "decimal(10,2)", "description": "Unit cost in USD"},
+        "inventory_qty": {"dtype": "int", "description": "Current inventory count"},
+        "created_at": {"dtype": "timestamp", "description": "Product creation date"}
+      },
+      "depends_on": {"nodes": []}
+    },
+    "source.ecommerce.raw_marketing": {
+      "unique_id": "source.ecommerce.raw_marketing",
+      "name": "raw_marketing",
+      "resource_type": "source",
+      "schema": "ecommerce",
+      "description": "Marketing spend and attribution data from Google Ads and Meta Ads.",
+      "columns": {
+        "campaign_id": {"dtype": "varchar", "description": "Campaign identifier"},
+        "channel": {"dtype": "varchar", "description": "Marketing channel: google, meta, email, organic"},
+        "impressions": {"dtype": "int", "description": "Total ad impressions"},
+        "clicks": {"dtype": "int", "description": "Total ad clicks"},
+        "spend": {"dtype": "decimal(12,2)", "description": "Total spend in USD"},
+        "conversions": {"dtype": "int", "description": "Attributed conversions"},
+        "revenue": {"dtype": "decimal(12,2)", "description": "Attributed revenue in USD"},
+        "date": {"dtype": "date", "description": "Campaign run date"}
+      },
+      "depends_on": {"nodes": []}
+    },
+    "seed.ecommerce.dim_date": {
+      "unique_id": "seed.ecommerce.dim_date",
+      "name": "dim_date",
+      "resource_type": "seed",
+      "schema": "ecommerce",
+      "description": "Date dimension table with fiscal calendar attributes. Seeds for date key lookups across all mart models.",
+      "columns": {
+        "date_key": {"dtype": "int", "description": "Surrogate key in YYYYMMDD format"},
+        "date": {"dtype": "date", "description": "Calendar date"},
+        "day_of_week": {"dtype": "int", "description": "1=Monday through 7=Sunday"},
+        "week_of_year": {"dtype": "int", "description": "ISO week number"},
+        "month": {"dtype": "int", "description": "Month number 1-12"},
+        "quarter": {"dtype": "int", "description": "Fiscal quarter 1-4"},
+        "year": {"dtype": "int", "description": "Year"},
+        "is_weekend": {"dtype": "boolean", "description": "True if Saturday or Sunday"},
+        "fiscal_period": {"dtype": "varchar", "description": "Fiscal period label e.g. FY2024-P03"}
+      },
+      "depends_on": {"nodes": []}
+    },
+    "seed.ecommerce.dim_channel": {
+      "unique_id": "seed.ecommerce.dim_channel",
+      "name": "dim_channel",
+      "resource_type": "seed",
+      "schema": "ecommerce",
+      "description": "Channel dimension with cost allocation and attribution model settings.",
+      "columns": {
+        "channel_key": {"dtype": "varchar", "description": "Channel identifier"},
+        "channel_name": {"dtype": "varchar", "description": "Human-readable channel name"},
+        "channel_group": {"dtype": "varchar", "description": "Channel group: paid, owned, earned"},
+        "attribution_model": {"dtype": "varchar", "description": "Attribution model: first-touch, last-touch, linear"},
+        "is_active": {"dtype": "boolean", "description": "Whether channel is currently active"}
+      },
+      "depends_on": {"nodes": []}
+    },
+    "model.ecommerce.stg_orders": {
+      "unique_id": "model.ecommerce.stg_orders",
+      "name": "stg_orders",
+      "resource_type": "model",
+      "schema": "ecommerce_staging",
+      "description": "Staging layer for orders — filters to completed orders only, normalizes timestamps to UTC.",
+      "columns": {
+        "order_id": {"dtype": "varchar", "description": "Primary key"},
+        "customer_id": {"dtype": "varchar", "description": "Foreign key to customers"},
+        "order_date": {"dtype": "timestamp", "description": "UTC-normalized order timestamp"},
+        "status": {"dtype": "varchar", "description": "Order status"},
+        "total_amount_usd": {"dtype": "decimal(10,2)", "description": "Amount normalized to USD"},
+        "channel": {"dtype": "varchar", "description": "Sales channel"}
+      },
+      "depends_on": {"nodes": ["source.ecommerce.raw_orders"]}
+    },
+    "model.ecommerce.stg_customers": {
+      "unique_id": "model.ecommerce.stg_customers",
+      "name": "stg_customers",
+      "resource_type": "model",
+      "schema": "ecommerce_staging",
+      "description": "Staging layer for customers — deduplicates by customer_id, selects latest record per customer.",
+      "columns": {
+        "customer_id": {"dtype": "varchar", "description": "Primary key"},
+        "email": {"dtype": "varchar", "description": "Email (hashed for privacy)"},
+        "full_name": {"dtype": "varchar", "description": "Concatenated first + last name"},
+        "country": {"dtype": "varchar", "description": "Country code"},
+        "tenure_days": {"dtype": "int", "description": "Days since account creation"},
+        "lifetime_value": {"dtype": "decimal(12,2)", "description": "Lifetime spend in USD"}
+      },
+      "depends_on": {"nodes": ["source.ecommerce.raw_customers"]}
+    },
+    "model.ecommerce.stg_products": {
+      "unique_id": "model.ecommerce.stg_products",
+      "name": "stg_products",
+      "resource_type": "model",
+      "schema": "ecommerce_staging",
+      "description": "Staging layer for products — computes margin and normalizes category names.",
+      "columns": {
+        "product_id": {"dtype": "varchar", "description": "Primary key"},
+        "sku": {"dtype": "varchar", "description": "SKU"},
+        "product_name": {"dtype": "varchar", "description": "Product display name"},
+        "category": {"dtype": "varchar", "description": "Normalized category"},
+        "price_usd": {"dtype": "decimal(10,2)", "description": "Price in USD"},
+        "cost_usd": {"dtype": "decimal(10,2)", "description": "Cost in USD"},
+        "margin_pct": {"dtype": "decimal(5,2)", "description": "Gross margin percentage"}
+      },
+      "depends_on": {"nodes": ["source.ecommerce.raw_products"]}
+    },
+    "model.ecommerce.stg_marketing_events": {
+      "unique_id": "model.ecommerce.stg_marketing_events",
+      "name": "stg_marketing_events",
+      "resource_type": "model",
+      "schema": "ecommerce_staging",
+      "description": "Staging layer for marketing spend — aggregates daily metrics and joins to dim_channel for group info.",
+      "columns": {
+        "date": {"dtype": "date", "description": "Campaign date"},
+        "channel": {"dtype": "varchar", "description": "Marketing channel"},
+        "channel_group": {"dtype": "varchar", "description": "Paid/Owned/Earned group"},
+        "impressions": {"dtype": "int", "description": "Total impressions"},
+        "clicks": {"dtype": "int", "description": "Total clicks"},
+        "spend_usd": {"dtype": "decimal(12,2)", "description": "Spend in USD"},
+        "conversions": {"dtype": "int", "description": "Attributed conversions"},
+        "revenue_usd": {"dtype": "decimal(12,2)", "description": "Attributed revenue"}
+      },
+      "depends_on": {"nodes": ["source.ecommerce.raw_marketing", "seed.ecommerce.dim_channel"]}
+    },
+    "model.ecommerce.int_order_items": {
+      "unique_id": "model.ecommerce.int_order_items",
+      "name": "int_order_items",
+      "resource_type": "model",
+      "schema": "ecommerce_intermediate",
+      "description": "Intermediate layer — joins orders to products to compute line-level revenue, cost, and margin.",
+      "columns": {
+        "order_id": {"dtype": "varchar", "description": "Foreign key to orders"},
+        "product_id": {"dtype": "varchar", "description": "Foreign key to products"},
+        "order_date": {"dtype": "timestamp", "description": "Order date"},
+        "channel": {"dtype": "varchar", "description": "Sales channel"},
+        "revenue": {"dtype": "decimal(10,2)", "description": "Line revenue in USD"},
+        "cost": {"dtype": "decimal(10,2)", "description": "Line cost in USD"},
+        "gross_margin": {"dtype": "decimal(10,2)", "description": "Line gross margin"}
+      },
+      "depends_on": {"nodes": ["model.ecommerce.stg_orders", "model.ecommerce.stg_customers", "model.ecommerce.stg_products"]}
+    },
+    "model.ecommerce.int_customer_signups": {
+      "unique_id": "model.ecommerce.int_customer_signups",
+      "name": "int_customer_signups",
+      "resource_type": "model",
+      "schema": "ecommerce_intermediate",
+      "description": "Intermediate layer — aggregates customer signup trends by date and country for retention analysis.",
+      "columns": {
+        "signup_date": {"dtype": "date", "description": "Date of account creation"},
+        "country": {"dtype": "varchar", "description": "Country code"},
+        "new_customers": {"dtype": "int", "description": "Count of new signups"},
+        "total_ltv": {"dtype": "decimal(14,2)", "description": "Sum of lifetime value for cohort"}
+      },
+      "depends_on": {"nodes": ["model.ecommerce.stg_customers"]}
+    },
+    "model.ecommerce.int_daily_sales": {
+      "unique_id": "model.ecommerce.int_daily_sales",
+      "name": "int_daily_sales",
+      "resource_type": "model",
+      "schema": "ecommerce_intermediate",
+      "description": "Intermediate layer — daily sales rollup with date key for joining to dim_date.",
+      "columns": {
+        "date": {"dtype": "date", "description": "Sales date"},
+        "date_key": {"dtype": "int", "description": "YYYYMMDD surrogate key"},
+        "total_orders": {"dtype": "int", "description": "Order count"},
+        "total_revenue": {"dtype": "decimal(14,2)", "description": "Total revenue"},
+        "total_cost": {"dtype": "decimal(14,2)", "description": "Total cost"},
+        "total_margin": {"dtype": "decimal(14,2)", "description": "Total gross margin"},
+        "avg_order_value": {"dtype": "decimal(10,2)", "description": "Average order value"}
+      },
+      "depends_on": {"nodes": ["model.ecommerce.stg_orders"]}
+    },
+    "model.ecommerce.mart_revenue": {
+      "unique_id": "model.ecommerce.mart_revenue",
+      "name": "mart_revenue",
+      "resource_type": "model",
+      "schema": "ecommerce_marts",
+      "description": "Revenue analytics mart — daily and monthly revenue, margin, and order metrics. Feeds executive dashboards and Stripe reconciliation.",
+      "columns": {
+        "date": {"dtype": "date", "description": "Date"},
+        "year": {"dtype": "int", "description": "Year"},
+        "quarter": {"dtype": "int", "description": "Fiscal quarter"},
+        "month": {"dtype": "int", "description": "Month number"},
+        "total_revenue": {"dtype": "decimal(14,2)", "description": "Total revenue in USD"},
+        "total_cost": {"dtype": "decimal(14,2)", "description": "Total cost in USD"},
+        "gross_margin": {"dtype": "decimal(14,2)", "description": "Gross margin in USD"},
+        "order_count": {"dtype": "int", "description": "Total orders"},
+        "avg_order_value": {"dtype": "decimal(10,2)", "description": "Average order value"}
+      },
+      "depends_on": {"nodes": ["model.ecommerce.int_order_items", "model.ecommerce.stg_orders", "seed.ecommerce.dim_date"]}
+    },
+    "model.ecommerce.mart_customer_analytics": {
+      "unique_id": "model.ecommerce.mart_customer_analytics",
+      "name": "mart_customer_analytics",
+      "resource_type": "model",
+      "schema": "ecommerce_marts",
+      "description": "Customer analytics mart — cohort analysis, LTV segments, and retention curves for growth team.",
+      "columns": {
+        "signup_month": {"dtype": "varchar", "description": "Signup month in YYYY-MM format"},
+        "country": {"dtype": "varchar", "description": "Country code"},
+        "cohort_size": {"dtype": "int", "description": "Customers in cohort"},
+        "month_0_revenue": {"dtype": "decimal(14,2)", "description": "Revenue in signup month"},
+        "month_1_retention": {"dtype": "decimal(5,2)", "description": "Retention rate at month 1"},
+        "month_3_retention": {"dtype": "decimal(5,2)", "description": "Retention rate at month 3"},
+        "avg_ltv_30d": {"dtype": "decimal(10,2)", "description": "Average LTV at 30 days"}
+      },
+      "depends_on": {"nodes": ["model.ecommerce.int_customer_signups", "seed.ecommerce.dim_date"]}
+    },
+    "model.ecommerce.mart_marketing_roi": {
+      "unique_id": "model.ecommerce.mart_marketing_roi",
+      "name": "mart_marketing_roi",
+      "resource_type": "model",
+      "schema": "ecommerce_marts",
+      "description": "Marketing ROI mart — channel-level spend efficiency, ROAS, and attributed revenue. Primary input for marketing budget decisions.",
+      "columns": {
+        "date": {"dtype": "date", "description": "Date"},
+        "channel": {"dtype": "varchar", "description": "Channel name"},
+        "channel_group": {"dtype": "varchar", "description": "Paid / Owned / Earned"},
+        "spend_usd": {"dtype": "decimal(12,2)", "description": "Total marketing spend"},
+        "attributed_revenue": {"dtype": "decimal(14,2)", "description": "Revenue attributed to this channel"},
+        "roas": {"dtype": "decimal(6,2)", "description": "Return on Ad Spend (revenue / spend)"},
+        "cpa": {"dtype": "decimal(10,2)", "description": "Cost per acquisition"},
+        "blended_roas": {"dtype": "decimal(6,2)", "description": "ROAS blending paid and organic"}
+      },
+      "depends_on": {"nodes": ["model.ecommerce.int_order_items", "model.ecommerce.stg_orders", "model.ecommerce.stg_marketing_events", "seed.ecommerce.dim_date"]}
+    },
+    "model.ecommerce.mart_product_performance": {
+      "unique_id": "model.ecommerce.mart_product_performance",
+      "name": "mart_product_performance",
+      "resource_type": "model",
+      "schema": "ecommerce_marts",
+      "description": "Product performance mart — sales by category and channel, margin analysis, and inventory velocity for merchandising team.",
+      "columns": {
+        "date": {"dtype": "date", "description": "Date"},
+        "product_id": {"dtype": "varchar", "description": "Product ID"},
+        "category": {"dtype": "varchar", "description": "Product category"},
+        "channel": {"dtype": "varchar", "description": "Sales channel"},
+        "units_sold": {"dtype": "int", "description": "Quantity sold"},
+        "revenue": {"dtype": "decimal(14,2)", "description": "Revenue in USD"},
+        "gross_margin": {"dtype": "decimal(14,2)", "description": "Gross margin in USD"},
+        "margin_pct": {"dtype": "decimal(5,2)", "description": "Margin percentage"}
+      },
+      "depends_on": {"nodes": ["model.ecommerce.int_order_items", "seed.ecommerce.dim_date", "seed.ecommerce.dim_channel"]}
+    },
+    "model.ecommerce.mart_inventory": {
+      "unique_id": "model.ecommerce.mart_inventory",
+      "name": "mart_inventory",
+      "resource_type": "model",
+      "schema": "ecommerce_marts",
+      "description": "Inventory mart — current stock levels, sell-through rate, and reorder alerts for operations team.",
+      "columns": {
+        "product_id": {"dtype": "varchar", "description": "Product ID"},
+        "sku": {"dtype": "varchar", "description": "SKU"},
+        "category": {"dtype": "varchar", "description": "Product category"},
+        "current_qty": {"dtype": "int", "description": "Current inventory quantity"},
+        "units_sold_30d": {"dtype": "int", "description": "Units sold in last 30 days"},
+        "sell_through_rate": {"dtype": "decimal(5,2)", "description": "Units sold / (units sold + current qty)"},
+        "days_of_stock": {"dtype": "int", "description": "Estimated days until stockout"},
+        "reorder_recommended": {"dtype": "boolean", "description": "True if days_of_stock < 14"}
+      },
+      "depends_on": {"nodes": ["model.ecommerce.int_order_items", "model.ecommerce.stg_orders", "seed.ecommerce.dim_date"]}
+    }
+  },
+  "parent_map": {},
+  "child_map": {}
+}

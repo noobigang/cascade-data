@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cascade — Data Lineage</title>
+  <style>
+    body {
+      background: #0d1117;
+      color: #e6edf3;
+      font-family: 'Inter', system-ui, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .container {
+      text-align: center;
+      max-width: 480px;
+      padding: 2rem;
+    }
+    h1 { font-size: 2rem; margin-bottom: 0.5rem; color: #58a6ff; }
+    p  { color: #8b949e; line-height: 1.6; font-size: 0.95rem; }
+    a  { color: #58a6ff; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 4px;
+      padding: 0.15em 0.4em;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85em;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🧬 Cascade</h1>
+    <p>
+      Cascade is deployed via <strong>Hugging Face Spaces</strong>.
+      The Streamlit app requires a Python runtime to build — see the
+      <a href="https://github.com/noobigang/cascade-data">GitHub repo</a>
+      for build instructions.
+    </p>
+    <p>
+      To run locally:<br/>
+      <code>pip install -r requirements.txt</code><br/>
+      <code>streamlit run cascade/app.py</code>
+    </p>
+  </div>
+</body>
+</html>

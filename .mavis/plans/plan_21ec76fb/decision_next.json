@@ -1,0 +1,33 @@
+{
+  "last_cycle": [],
+  "next_cycle": [
+    {
+      "task_id": "demo-screenshot",
+      "title": "Demo screenshot + README hero image",
+      "prompt": "Create a demo screenshot for Cascade.\n\nWORKING DIRECTORY: C:\\Users\\mrham\\.mavis\\sessions\\mvs_bdf526f4764c45a1ab5698fa4265cada\\workspace\\cascade-data\\\n\n1. Read cascade/app.py to understand the current UI.\n\n2. Try to run the Streamlit app locally to capture a screenshot:\n   cd to cascade-data directory, run: streamlit run cascade/app.py --server.headless true --server.port 8501\n   Wait 5 seconds for startup, use the browser bridge to capture a screenshot, save as docs/demo.png\n\n3. If streamlit is not available or fails, create a professional placeholder image using Python PIL:\n   from PIL import Image, ImageDraw, ImageFont\n   Create a 1200x700 dark image (#0D1117 background) with:\n   - Title text 'Cascade' in large white font\n   - Subtitle 'Column-Level Data Lineage' \n   - A simplified DAG visualization drawn with ImageDraw (circles for nodes, lines for edges)\n   - Color scheme matching Cascade dark theme (blue nodes, teal accents)\n   - Save as docs/demo.png\n\n4. Create docs/banner.png (800x200): a horizontal banner with Cascade logo text, tagline, and the same dark theme. Suitable for GitHub social preview.\n\n5. Verify both images exist and are valid.\n\nReport: files created, image dimensions.",
+      "assigned_to": "general",
+      "verified_by": "verifier",
+      "verify_prompt": "Check docs/demo.png exists and is at least 800px wide. Check docs/banner.png exists and is at least 600px wide. Use: python -c 'from PIL import Image; img=Image.open(\"docs/demo.png\"); print(img.size)'. PASS if both exist and are valid images at correct dimensions. FAIL if missing or too small.",
+      "max_retries": 2
+    },
+    {
+      "task_id": "github-readiness",
+      "title": "GitHub repo polish",
+      "prompt": "Polish cascade-data for GitHub launch.\n\nWORKING DIRECTORY: C:\\Users\\mrham\\.mavis\\sessions\\mvs_bdf526f4764c45a1ab5698fa4265cada\\workspace\\cascade-data\\\n\n1. Create .github/ISSUE_TEMPLATE/bug_report.md with: description, steps to reproduce, expected vs actual, environment (OS, Python version, dbt version)\n\n2. Create .github/ISSUE_TEMPLATE/feature_request.md with: problem description, proposed solution, alternatives considered\n\n3. Create SUPPORT.md with: how to get help, link to GitHub Issues, link to docs/\n\n4. Create CODE_OF_CONDUCT.md using Contributor Covenant 2.1 template (https://www.contributor-covenant.org/version/2/1/code_of_conduct/)\n\n5. Create .github/FUNDING.yml with a placeholder: github: [noobigang]\n\n6. Ensure .gitignore includes: __pycache__/, .pytest_cache/, .mypy_cache/, .ruff_cache/, dist/, build/, .env, *.manifest.json\n\n7. Update README.md GitHub stars badge to point to noobigang/cascade-data\n\nReport: files created.",
+      "assigned_to": "general",
+      "verified_by": "verifier",
+      "verify_prompt": "Check .github/ISSUE_TEMPLATE/bug_report.md exists with required sections. Check SUPPORT.md exists. Check CODE_OF_CONDUCT.md exists with Contributor Covenant content. Check .github/FUNDING.yml exists. PASS if all 5 files present. FAIL if any missing.",
+      "max_retries": 1
+    },
+    {
+      "task_id": "final-push",
+      "title": "Git commit + push to GitHub",
+      "prompt": "Commit all Cascade files and push to GitHub.\n\nWORKING DIRECTORY: C:\\Users\\mrham\\.mavis\\sessions\\mvs_bdf526f4764c45a1ab5698fa4265cada\\workspace\\cascade-data\\\n\n1. Run git status to see all uncommitted files.\n\n2. Review all changed files for secrets: API keys, passwords, hardcoded tokens, .env files. Remove any found.\n\n3. Stage all files: git add .\n\n4. Create commit: feat: initial release of Cascade - column-level data lineage with blast radius analysis\n\n5. Push to main: git push origin main\n\n6. Verify: git log -1 --oneline\n\n7. Report: commit hash, push status.\n\nIMPORTANT: Check for secrets before committing. If any sensitive files exist, exclude them.",
+      "assigned_to": "general",
+      "verified_by": "verifier",
+      "verify_prompt": "In the cascade-data directory, run: git log -1 --oneline and git status. Confirm the most recent commit is the initial release and repo is clean after push. PASS if commit exists and push succeeded. FAIL if not.",
+      "max_retries": 2
+    }
+  ],
+  "plan_complete": false
+}

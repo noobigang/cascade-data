@@ -1,0 +1,109 @@
+{
+  "metadata": {
+    "dbt_schema_version": "https://schemas.getdbt.com/dbt/manifest/v11.json",
+    "dbt_version": "1.7.0",
+    "project_name": "my_project"
+  },
+  "nodes": {
+    "source.my_project.raw_source": {
+      "unique_id": "source.my_project.raw_source",
+      "name": "raw_source",
+      "resource_type": "source",
+      "schema": "public",
+      "description": "Raw database source",
+      "columns": {
+        "user_id": {"dtype": "int", "description": "User ID"},
+        "created_at": {"dtype": "timestamp", "description": "Creation timestamp"}
+      },
+      "depends_on": {"nodes": []}
+    },
+    "model.my_project.raw_users": {
+      "unique_id": "model.my_project.raw_users",
+      "name": "raw_users",
+      "resource_type": "model",
+      "schema": "staging",
+      "description": "Raw users table",
+      "columns": {
+        "user_id": {"dtype": "int", "description": "User ID"},
+        "email": {"dtype": "varchar", "description": "User email"}
+      },
+      "depends_on": {"nodes": ["source.my_project.raw_source"]}
+    },
+    "model.my_project.stg_users": {
+      "unique_id": "model.my_project.stg_users",
+      "name": "stg_users",
+      "resource_type": "model",
+      "schema": "staging",
+      "description": "Staged users",
+      "columns": {
+        "user_id": {"dtype": "int", "description": "User ID"},
+        "email": {"dtype": "varchar", "description": "Email"}
+      },
+      "depends_on": {"nodes": ["model.my_project.raw_users"]}
+    },
+    "model.my_project.customers": {
+      "unique_id": "model.my_project.customers",
+      "name": "customers",
+      "resource_type": "model",
+      "schema": "analytics",
+      "description": "Cleaned customers",
+      "columns": {
+        "user_id": {"dtype": "int", "description": "User ID"},
+        "name": {"dtype": "varchar", "description": "Full name"}
+      },
+      "depends_on": {"nodes": ["model.my_project.stg_users"]}
+    },
+    "model.my_project.orders": {
+      "unique_id": "model.my_project.orders",
+      "name": "orders",
+      "resource_type": "model",
+      "schema": "analytics",
+      "description": "Order records",
+      "columns": {
+        "user_id": {"dtype": "int", "description": "User ID"},
+        "amount": {"dtype": "decimal", "description": "Order amount"}
+      },
+      "depends_on": {"nodes": ["model.my_project.raw_users"]}
+    },
+    "model.my_project.reports": {
+      "unique_id": "model.my_project.reports",
+      "name": "reports",
+      "resource_type": "model",
+      "schema": "reporting",
+      "description": "Final report",
+      "columns": {
+        "user_id": {"dtype": "int", "description": "User ID"},
+        "total_amount": {"dtype": "decimal", "description": "Total spend"}
+      },
+      "depends_on": {"nodes": ["model.my_project.customers", "model.my_project.orders"]}
+    },
+    "seed.my_project.seed_countries": {
+      "unique_id": "seed.my_project.seed_countries",
+      "name": "seed_countries",
+      "resource_type": "seed",
+      "schema": "analytics",
+      "description": "Country reference",
+      "columns": {
+        "country_code": {"dtype": "varchar", "description": "ISO code"},
+        "country_name": {"dtype": "varchar", "description": "Country name"}
+      },
+      "depends_on": {"nodes": []}
+    },
+    "test.my_project.unique_users": {
+      "unique_id": "test.my_project.unique_users",
+      "name": "unique_users",
+      "resource_type": "test",
+      "schema": "analytics",
+      "description": "Unique user test",
+      "columns": {},
+      "depends_on": {"nodes": ["model.my_project.customers"]}
+    }
+  },
+  "parent_map": {
+    "model.my_project.raw_users": ["source.my_project.raw_source"],
+    "model.my_project.stg_users": ["model.my_project.raw_users"],
+    "model.my_project.customers": ["model.my_project.stg_users"],
+    "model.my_project.orders": ["model.my_project.raw_users"],
+    "model.my_project.reports": ["model.my_project.customers", "model.my_project.orders"]
+  }
+}

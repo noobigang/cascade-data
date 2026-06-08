@@ -683,7 +683,9 @@ with st.sidebar:
             st.session_state.manifest = manifest
             st.session_state.loading = True
 
-            # Build DAG
+        # Build DAG if loading is set (from demo button or upload)
+        if st.session_state.get("loading") and st.session_state.get("manifest"):
+            manifest = st.session_state.manifest
             dag: nx.DiGraph = nx.DiGraph()
             nodes_data = manifest.get("nodes", {})
 

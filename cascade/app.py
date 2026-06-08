@@ -667,7 +667,11 @@ with st.sidebar:
     DEMO_MANIFEST_PATH = REPO_ROOT / "demo" / "manifest.json"
     if DEMO_MANIFEST_PATH.exists():
         if st.button("🎲 Try Demo", use_container_width=True, type="primary"):
-            st.session_state.load_demo = True
+            import json
+            with open(DEMO_MANIFEST_PATH, encoding="utf-8") as f:
+                demo_data = json.load(f)
+            st.session_state.manifest = demo_data
+            st.session_state.loading = True
     else:
         st.caption("ℹ️ Demo not available")
 

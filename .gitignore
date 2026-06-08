@@ -28,6 +28,9 @@ secrets.yml
 *.pem
 *.key
 
+# Mavis plan metadata
+.mavis/
+
 # Build artifacts
 dist/
 build/

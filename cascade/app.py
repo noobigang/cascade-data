@@ -483,6 +483,8 @@ def init_state():
         st.session_state.physics_enabled = True
     if "filters" not in st.session_state:
         st.session_state.filters = {"model": True, "source": True, "seed": True}
+    if "load_demo" not in st.session_state:
+        st.session_state.load_demo = False
 
 
 init_state()
@@ -505,6 +507,20 @@ def _restore_from_url():
 
 
 _restore_from_url()
+
+# ── Demo loader ─────────────────────────────────────────────────────────
+DEMO_MANIFEST_PATH = REPO_ROOT / "demo" / "manifest.json"
+if st.session_state.get("load_demo") and DEMO_MANIFEST_PATH.exists():
+    try:
+        import json
+        with open(DEMO_MANIFEST_PATH, encoding="utf-8") as f:
+            demo_data = json.load(f)
+        st.session_state.manifest = demo_data
+        st.session_state.loading = True
+        st.session_state.load_demo = False
+    except Exception as e:
+        st.error(f"Demo failed: {e}")
+        st.session_state.load_demo = False
 
 
 # ---------------------------------------------------------------------------
@@ -651,12 +667,9 @@ with st.sidebar:
     DEMO_MANIFEST_PATH = REPO_ROOT / "demo" / "manifest.json"
     if DEMO_MANIFEST_PATH.exists():
         if st.button("🎲 Try Demo", use_container_width=True, type="primary"):
-            import json
-            with open(DEMO_MANIFEST_PATH, encoding="utf-8") as f:
-                demo_data = json.load(f)
-            st.session_state.manifest = demo_data
-            st.session_state.loading = True
-            st.rerun()
+            st.session_state.load_demo = True
+    else:
+        st.caption("ℹ️ Demo not available")
 
     # ── Upload section (collapsible) ─────────────────────────────────────
     with st.expander("📦 Upload manifest", expanded=not has_dag):

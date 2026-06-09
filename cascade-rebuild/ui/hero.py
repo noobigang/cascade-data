@@ -24,15 +24,27 @@ section[data-testid="stSidebar"] {
 
 section[data-testid="stSidebar"] .stMarkdown {
     font-family: 'Inter', sans-serif;
+}
+
+/* Push main content below Streamlit's hosted Deploy button overlay */
+.stAppDeployButton { top: 56px !important; }
+.block-container { padding-top: 3.5rem !important; }
+
+section[data-testid="stSidebar"] .stMarkdown {
+    font-family: 'Inter', sans-serif;
     font-weight: 500 !important;
 }
 
 /* Typography */
-h1 {
+h1, h2, h3, h4, h5, h6 {
     font-family: 'JetBrains Mono', monospace !important;
     color: #E6EDF3 !important;
-    font-weight: 800 !important;
-    letter-spacing: -0.5px;
+    font-weight: 700 !important;
+    letter-spacing: -0.3px !important;
+}
+
+body, p, span, div, label {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
 }
 
 h2, h3, h4, h5, h6 {
@@ -108,15 +120,14 @@ h2, h3, h4, h5, h6 {
     background: linear-gradient(135deg, #0D1117 0%, #161B22 50%, #0D1117 100%);
     border: 1px solid #30363D;
     border-radius: 16px;
-    padding: 40px 32px;
-    margin-bottom: 24px;
+    padding: 60px 32px;
+    margin: 20px 0 24px 0;
     position: relative;
     overflow: hidden;
     text-align: center;
 }
 
-.cascade-hero::before {
-    content: '';
+.cascade-hero-bg {
     position: absolute;
     top: -50%;
     left: -50%;
@@ -133,21 +144,30 @@ h2, h3, h4, h5, h6 {
     50% { opacity: 1; transform: scale(1.05); }
 }
 
+.cascade-hero-wave {
+    font-size: 56px;
+    margin-bottom: 20px;
+    position: relative;
+    z-index: 1;
+}
+
 .cascade-hero-title {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 28px;
-    font-weight: 700;
+    font-size: 30px;
+    font-weight: 800;
     color: #E6EDF3;
     margin-bottom: 10px;
     position: relative;
     z-index: 1;
+    letter-spacing: -0.5px;
 }
 
 .cascade-hero-sub {
     font-family: 'Inter', sans-serif;
     font-size: 15px;
+    font-weight: 600;
     color: #8B949E;
-    margin-bottom: 24px;
+    margin-bottom: 8px;
     position: relative;
     z-index: 1;
 }

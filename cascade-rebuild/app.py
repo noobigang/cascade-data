@@ -233,6 +233,16 @@ def main():
             st.session_state.selected_node_uid = first_uid
             st.rerun()
 
+    # Auto-scroll + state bridge — listens for DAG node clicks and propagates
+    # the selection back to Streamlit session state.
+    from ui.scroll_bridge import render_scroll_bridge
+    bridge_event = render_scroll_bridge()
+    if bridge_event and isinstance(bridge_event, dict):
+        new_uid = bridge_event.get("selected_node_uid")
+        if new_uid and new_uid != st.session_state.get("selected_node_uid"):
+            st.session_state.selected_node_uid = new_uid
+            st.rerun()
+
     st.divider()
 
     # ── Impact Analysis ─────────────────────────────────────────────────────
@@ -247,33 +257,12 @@ def main():
 def _render_empty_state():
     """Render the empty state when no manifest is loaded."""
     st.markdown(
-        """
-        <div style="
-            background: linear-gradient(135deg, #0D1117 0%, #161B22 50%, #0D1117 100%);
-            border: 1px solid #30363D;
-            border-radius: 16px;
-            padding: 60px 32px;
-            text-align: center;
-            margin: 20px 0;
-            position: relative;
-            overflow: hidden;
-        ">
-            <div style="position:absolute;top:-50%;left:-50%;width:200%;height:200%;
-                        background:radial-gradient(circle at 30% 50%, rgba(88,166,255,0.06) 0%, transparent 50%),
-                                   radial-gradient(circle at 70% 60%, rgba(57,211,83,0.04) 0%, transparent 40%);
-                        animation: heroPulse 8s ease-in-out infinite; pointer-events:none;"></div>
-
-            <div style="font-size:56px; margin-bottom:20px; position:relative;">🌊</div>
-            <div style="font-family:'JetBrains Mono',monospace; font-size:30px; font-weight:800;
-                        color:#E6EDF3; margin-bottom:10px; position:relative; letter-spacing:-0.5px;">
-                See the full impact of every data change
-            </div>
-            <div style="font-family:'Inter',sans-serif; font-size:15px; font-weight:600; color:#8B949E;
-                        margin-bottom:32px; position:relative;">
-                Column-level lineage for dbt projects — know what breaks before you deploy
-            </div>
-        </div>
-        """,
+        '<div class="cascade-hero">'
+        '<div class="cascade-hero-bg"></div>'
+        '<div class="cascade-hero-wave">🌊</div>'
+        '<div class="cascade-hero-title">See the full impact of every data change</div>'
+        '<div class="cascade-hero-sub">Column-level lineage for dbt projects — know what breaks before you deploy</div>'
+        '</div>',
         unsafe_allow_html=True,
     )
 

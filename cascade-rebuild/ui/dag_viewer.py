@@ -674,7 +674,7 @@ def render_dag_viewer(graph_data: dict, height: int = 600, key: str = "dag_viewe
     accordingly.
     """
     html = _wrap_dag_html(graph_data, height, current_selected)
-    # The declared component accepts html= only when url is not used.
-    # We render via the component API; Streamlit injects the runtime that
-    # exposes `Streamlit.setComponentValue` inside the iframe.
-    return _dag_component(html=html, height=height, key=key, default=None)
+    # Use components.html for the actual rendering (renders the inline HTML).
+    # Bidirectional updates are still delivered via window.parent.postMessage,
+    # consumed by a hidden bridge listener rendered in app.py.
+    return components.html(html, height=height, scrolling=False)

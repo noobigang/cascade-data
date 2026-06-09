@@ -166,7 +166,7 @@ def main():
     filters = st.session_state.get("filters", {})
     graph = st.session_state.get("graph")
 
-    def on_model_select(uid: str):
+    def on_model_select(uid):
         st.session_state.selected_node_uid = uid
         st.rerun()
 
@@ -193,8 +193,23 @@ def main():
     dag_data = _build_dag_data(graph, sidebar_filters)
 
     if dag_data["nodes"]:
-        # Render the D3.js DAG
-        render_dag_viewer(dag_data, height=700)
+        # Render the D3.js DAG. The component returns a dict with the latest
+        # click event from the iframe (or None if no click has happened).
+        current_selected = st.session_state.get("selected_node_uid")
+        click_event = render_dag_viewer(
+            dag_data,
+            height=700,
+            key="dag_viewer",
+            current_selected=current_selected,
+        )
+
+        # If the iframe reported a new selection, sync it into session state
+        # and rerun so the sidebar highlight + detail panel update.
+        if click_event and isinstance(click_event, dict):
+            new_uid = click_event.get("selected_node_uid")
+            if new_uid != current_selected:
+                st.session_state.selected_node_uid = new_uid
+                st.rerun()
 
         # DAG controls hint
         st.caption(
@@ -249,11 +264,11 @@ def _render_empty_state():
                         animation: heroPulse 8s ease-in-out infinite; pointer-events:none;"></div>
 
             <div style="font-size:56px; margin-bottom:20px; position:relative;">🌊</div>
-            <div style="font-family:JetBrains Mono,monospace; font-size:28px; font-weight:700;
-                        color:#E6EDF3; margin-bottom:10px; position:relative;">
+            <div style="font-family:'JetBrains Mono',monospace; font-size:30px; font-weight:800;
+                        color:#E6EDF3; margin-bottom:10px; position:relative; letter-spacing:-0.5px;">
                 See the full impact of every data change
             </div>
-            <div style="font-family:Inter,sans-serif; font-size:15px; color:#8B949E;
+            <div style="font-family:'Inter',sans-serif; font-size:15px; font-weight:600; color:#8B949E;
                         margin-bottom:32px; position:relative;">
                 Column-level lineage for dbt projects — know what breaks before you deploy
             </div>

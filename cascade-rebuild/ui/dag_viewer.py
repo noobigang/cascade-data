@@ -2,9 +2,12 @@
 DAG Viewer component for Cascade.
 Renders a static, clean, left-to-right lineage graph (no force animation).
 Uses D3.js with dagre layout — matches dbt-colibri's static style.
+
+Click events bubble back to Streamlit via a bidirectional component wrapper.
 """
 
 import streamlit as st
+import streamlit.components.v1 as components
 import json
 
 
@@ -50,7 +53,7 @@ DAG_HTML = r"""
   .node-type-badge {
     font-family: 'JetBrains Mono', monospace;
     font-size: 9px;
-    font-weight: 600;
+    font-weight: 700;
     fill: #0D1117;
     text-anchor: middle;
     dominant-baseline: central;
@@ -66,7 +69,7 @@ DAG_HTML = r"""
   .node-name {
     font-family: 'JetBrains Mono', 'Consolas', monospace;
     font-size: 14px;
-    font-weight: 600;
+    font-weight: 700;
     fill: #E6EDF3;
     text-anchor: middle;
     dominant-baseline: central;
@@ -76,6 +79,7 @@ DAG_HTML = r"""
   .node-sub {
     font-family: 'Inter', sans-serif;
     font-size: 11px;
+    font-weight: 600;
     fill: #8B949E;
     text-anchor: middle;
     dominant-baseline: central;
@@ -85,6 +89,7 @@ DAG_HTML = r"""
   .node-meta {
     font-family: 'JetBrains Mono', monospace;
     font-size: 10px;
+    font-weight: 600;
     fill: #8B949E;
     text-anchor: middle;
     dominant-baseline: central;
@@ -115,6 +120,7 @@ DAG_HTML = r"""
     color: #8B949E;
     font-size: 11px;
     font-family: 'Inter', sans-serif;
+    font-weight: 600;
     padding: 6px 10px;
     cursor: pointer;
     transition: all 0.15s;
@@ -139,6 +145,7 @@ DAG_HTML = r"""
     border-radius: 20px;
     font-size: 10px;
     font-family: 'Inter', sans-serif;
+    font-weight: 600;
     padding: 4px 10px;
     cursor: pointer;
     color: #8B949E;
@@ -162,10 +169,11 @@ DAG_HTML = r"""
     gap: 18px;
     font-size: 11px;
     font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
     color: #8B949E;
     z-index: 100;
   }
-  #stats span { color: #E6EDF3; font-weight: 600; }
+  #stats span { color: #E6EDF3; font-weight: 700; }
 
   /* Tooltip */
   #tooltip {
@@ -184,7 +192,7 @@ DAG_HTML = r"""
     box-shadow: 0 4px 16px rgba(0,0,0,0.5);
   }
   #tooltip.visible { opacity: 1; }
-  #tooltip .tip-name { font-family: 'JetBrains Mono', monospace; font-weight: 600; }
+  #tooltip .tip-name { font-family: 'JetBrains Mono', monospace; font-weight: 700; }
   #tooltip .tip-uid  { color: #8B949E; font-family: 'JetBrains Mono', monospace; font-size: 10px; }
 
   /* Empty state */
@@ -198,7 +206,7 @@ DAG_HTML = r"""
   }
   #empty-state.visible { display: block; }
   #empty-state .empty-icon { font-size: 56px; margin-bottom: 16px; opacity: 0.3; }
-  #empty-state .empty-title { font-size: 16px; color: #E6EDF3; font-weight: 600; margin-bottom: 6px; }
+  #empty-state .empty-title { font-size: 16px; color: #E6EDF3; font-weight: 700; margin-bottom: 6px; }
   #empty-state .empty-sub { font-size: 12px; }
 </style>
 </head>
@@ -239,7 +247,13 @@ DAG_HTML = r"""
 
   let graphData = { nodes: [], edges: [] };
   let activeFilters = new Set(['model', 'source', 'seed']);
-  let selectedNodeId = null;
+  let selectedNodeId = __INITIAL_SELECTED__;
+  let onSelectCallback = null;
+
+  // ── Streamlit bridge: register a callback that Python can call ──────────
+  // Python registers `window.__cascadeRegisterSelect` once on load via
+  // setting `window.__cascadeOnSelect = (uid) => ...` from Python-side JS.
+  // We do not depend on it for visual selection; selection is local.
 
   const svg = d3.select('#graph-svg');
   const container = document.getElementById('dag-container');
@@ -433,13 +447,28 @@ DAG_HTML = r"""
     updateNodeStyles();
     updateEdgeStyles();
 
-    // Notify Streamlit
-    if (window.parent && window.parent !== window) {
-      window.parent.postMessage({
-        type: 'cascade_node_selected',
-        nodeId: selectedNodeId
-      }, '*');
-    }
+    // Notify Streamlit via:
+    // 1) The custom component's setComponentValue (preferred, used in Python wrapper)
+    // 2) Fallback: postMessage
+    try {
+      if (typeof window.__cascadeSetValue === 'function') {
+        window.__cascadeSetValue({ selected_node_uid: selectedNodeId, ts: Date.now() });
+      }
+    } catch (e) { /* ignore */ }
+
+    try {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({
+          type: 'cascade_node_selected',
+          nodeId: selectedNodeId
+        }, '*');
+        // Also set a property that the scroll-bridge iframe polls for
+        try {
+          window.parent.cascadePendingNodeId = selectedNodeId;
+          window.parent.cascadePendingNodeAt = Date.now();
+        } catch (e) { /* cross-origin, ignore */ }
+      }
+    } catch (e) { /* ignore */ }
   }
 
   function updateNodeStyles() {
@@ -567,6 +596,12 @@ DAG_HTML = r"""
       selectedNodeId = null;
       updateNodeStyles();
       updateEdgeStyles();
+      // Also notify Streamlit
+      try {
+        if (typeof window.__cascadeSetValue === 'function') {
+          window.__cascadeSetValue({ selected_node_uid: null, ts: Date.now() });
+        }
+      } catch (e) { /* ignore */ }
     }
   });
 
@@ -584,15 +619,62 @@ DAG_HTML = r"""
 """
 
 
-def render_dag_viewer(graph_data: dict, height: int = 600) -> None:
-    """Render the static dagre-laid-out DAG viewer."""
-    import streamlit.components.v1 as components
+# Declare a custom component so the iframe can call setComponentValue back to Python.
+# This is the official Streamlit bidirectional component API.
+# Using `streamlit.components.v1.declare_component` is the cleanest way to get
+# a Python value back from JS.
+_dag_component = components.declare_component(
+    "cascade_dag_viewer",
+    url="https://placeholder.invalid",  # not used; we pass html= below via _component_func
+)
 
+
+def _wrap_dag_html(graph_data: dict, height: int, current_selected: str | None) -> str:
+    """Substitute initial state into the DAG HTML template."""
     data_json = json.dumps(graph_data)
+    initial_selected_js = "null" if current_selected is None else json.dumps(current_selected)
+    html = DAG_HTML.replace("__INITIAL_SELECTED__", initial_selected_js)
+    # Inject data + a tiny bridge script that forwards setValue from window.__cascadeSetValue
+    # into the Streamlit component value via parent.postMessage (still works for the
+    # declared component path because Streamlit's component runtime injects `Streamlit`
+    # global into the iframe).
+    bridge = """
+    <script>
+    (function() {
+      // Streamlit's component runtime exposes `window.Streamlit` (or via parent).
+      // When the runtime is present, we can use setComponentValue.
+      function getStreamlit() {
+        try {
+          if (window.Streamlit && typeof window.Streamlit.setComponentValue === 'function') return window.Streamlit;
+          if (window.parent && window.parent.Streamlit && typeof window.parent.Streamlit.setComponentValue === 'function') return window.parent.Streamlit;
+        } catch (e) {}
+        return null;
+      }
+      window.__cascadeSetValue = function(payload) {
+        const S = getStreamlit();
+        if (S) {
+          try { S.setComponentValue(payload); return; } catch (e) {}
+        }
+        // Fallback: postMessage to parent (consumed by a hidden listener)
+        try { window.parent.postMessage(Object.assign({type: 'cascade_node_selected_bridge'}, payload), '*'); } catch (e) {}
+      };
+    })();
+    </script>
+    """
+    return html.replace("</body>", f"<script>window.loadGraphData({data_json});</script>{bridge}</body>")
 
-    html = DAG_HTML.replace(
-        "</body>",
-        f"<script>window.loadGraphData({data_json});</script></body>",
-    )
 
-    components.html(html, height=height, scrolling=False)
+def render_dag_viewer(graph_data: dict, height: int = 600, key: str = "dag_viewer", current_selected: str | None = None) -> dict | None:
+    """
+    Render the static dagre-laid-out DAG viewer.
+
+    Returns a dict with the latest node-click event from the iframe, or None
+    if no click has happened in this render.  Callers should read the dict's
+    `selected_node_uid` and update `st.session_state.selected_node_uid`
+    accordingly.
+    """
+    html = _wrap_dag_html(graph_data, height, current_selected)
+    # The declared component accepts html= only when url is not used.
+    # We render via the component API; Streamlit injects the runtime that
+    # exposes `Streamlit.setComponentValue` inside the iframe.
+    return _dag_component(html=html, height=height, key=key, default=None)

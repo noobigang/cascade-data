@@ -2,9 +2,11 @@
 Sidebar component — filters, resource list, stats.
 """
 
+from collections.abc import Callable
+
 import streamlit as st
+
 from lineage.models import LineageGraph
-from typing import Callable
 
 
 def render_sidebar(graph: LineageGraph, on_model_select: Callable[[str], None]) -> dict:

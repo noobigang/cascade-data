@@ -2,13 +2,13 @@
 Upload zone component — drag-and-drop manifest.json uploader.
 """
 
-import streamlit as st
 import json
 from pathlib import Path
-from typing import Optional, Tuple
+
+import streamlit as st
 
 
-def render_upload_zone() -> Tuple[Optional[dict], Optional[dict]]:
+def render_upload_zone() -> tuple[dict | None, dict | None]:
     """
     Render the upload zone and return (manifest_data, catalog_data).
     Returns (None, None) if no file was uploaded.
@@ -84,7 +84,7 @@ def render_try_demo_button() -> bool:
     )
 
 
-def load_demo_manifest() -> Tuple[dict, Optional[dict]]:
+def load_demo_manifest() -> tuple[dict, dict | None]:
     """
     Load the built-in demo manifest.json.
     Returns (manifest_dict, None).
@@ -92,7 +92,7 @@ def load_demo_manifest() -> Tuple[dict, Optional[dict]]:
     demo_path = Path(__file__).parent.parent / "demo" / "manifest.json"
 
     if demo_path.exists():
-        with open(demo_path, "r", encoding="utf-8") as f:
+        with open(demo_path, encoding="utf-8") as f:
             manifest = json.load(f)
         return manifest, None
     else:

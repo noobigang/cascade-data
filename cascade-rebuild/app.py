@@ -8,33 +8,28 @@ column-level dependencies, and impact analysis.
 from __future__ import annotations
 
 import streamlit as st
-import json
-from pathlib import Path
 
 # Import lineage engine
 from lineage import (
     LineageGraph,
-    parse_manifest_from_dict,
+    enrich_graph_with_lineage,
     get_downstream,
     get_upstream,
-    blast_radius_score,
-    enrich_graph_with_lineage,
+    parse_manifest_from_dict,
 )
 
 # Import UI components
 from ui import (
-    render_dag_viewer,
-    render_upload_zone,
-    render_try_demo_button,
-    load_demo_manifest,
     inject_dark_theme,
-    render_hero,
-    render_summary_stats,
-    render_sidebar,
+    load_demo_manifest,
+    render_dag_viewer,
     render_detail_panel,
+    render_hero,
     render_impact_panel,
+    render_sidebar,
+    render_try_demo_button,
+    render_upload_zone,
 )
-
 
 # ─── Page Config ──────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -163,7 +158,7 @@ def _build_dag_data(graph: LineageGraph, filters: dict = None) -> dict:
 # ─── Main app ─────────────────────────────────────────────────────────────────
 def main():
     # ── Sidebar ──────────────────────────────────────────────────────────────
-    filters = st.session_state.get("filters", {})
+    st.session_state.get("filters", {})
     graph = st.session_state.get("graph")
 
     def on_model_select(uid):
@@ -240,8 +235,9 @@ def main():
 
     # Auto-scroll + state bridge — listens for DAG node clicks and propagates
     # the selection back to Streamlit session state.
-    from ui.scroll_bridge import render_scroll_bridge, poll_pending_node
     import json as _json
+
+    from ui.scroll_bridge import poll_pending_node, render_scroll_bridge
     render_scroll_bridge()
     pending = poll_pending_node(default=None)
     if pending:

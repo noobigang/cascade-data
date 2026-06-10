@@ -8,10 +8,9 @@ Includes the killer feature: column-level lineage table with:
 """
 
 import streamlit as st
-import pandas as pd
-from lineage.models import TableNode, LineageGraph
-from lineage.impact import get_downstream, get_upstream, blast_radius_score
 
+from lineage.impact import blast_radius_score, get_downstream, get_upstream
+from lineage.models import LineageGraph, TableNode
 
 # ─── CSS for the column table ───────────────────────────────────────────────
 COLUMN_TABLE_CSS = """
@@ -230,7 +229,7 @@ def _classify_lineage_status(node: TableNode, col_name: str, graph: LineageGraph
         if not dn:
             continue
         # Check downstream's column_deps for (this_node.unique_id, col_name)
-        for tgt_col, sources in dn.column_deps.items():
+        for _tgt_col, sources in dn.column_deps.items():
             for (src_uid, src_col) in sources:
                 if src_uid == node.unique_id and src_col == col_name:
                     has_down = True
@@ -358,7 +357,7 @@ def render_detail_panel(node: TableNode, graph: LineageGraph):
 
     # Risk score
     score = blast_radius_score(node.unique_id, graph)
-    risk_class = score.level.lower()
+    score.level.lower()
     risk_emoji = {"LOW": "🟢", "MEDIUM": "🟡", "HIGH": "🔴", "CRITICAL": "⚫"}.get(score.level, "")
 
     col_a, col_b, col_c = st.columns(3)

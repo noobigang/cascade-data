@@ -3,9 +3,9 @@ Hero section + stats bar for the Cascade dashboard.
 """
 
 import streamlit as st
-from lineage.models import LineageGraph
-from lineage.impact import get_most_connected_nodes, get_deepest_lineage_path
 
+from lineage.impact import get_deepest_lineage_path, get_most_connected_nodes
+from lineage.models import LineageGraph
 
 # ─── Dark theme CSS ───────────────────────────────────────────────────────────
 DARK_CSS = """

@@ -6,10 +6,9 @@ Uses D3.js with dagre layout — matches dbt-colibri's static style.
 Click events bubble back to Streamlit via a bidirectional component wrapper.
 """
 
-import streamlit as st
-import streamlit.components.v1 as components
 import json
 
+import streamlit.components.v1 as components
 
 DAG_HTML = r"""
 <!DOCTYPE html>

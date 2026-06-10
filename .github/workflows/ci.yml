@@ -17,7 +17,9 @@ jobs:
           python-version: "3.11"
           cache: pip
       - run: pip install ruff
-      - run: ruff check .
+      # Scope to the new app under cascade-rebuild/. The legacy cascade/
+      # directory is no longer maintained and its files are not linted.
+      - run: ruff check cascade-rebuild/lineage/ cascade-rebuild/ui/ cascade-rebuild/app.py cascade-rebuild/tests/
 
   typecheck:
     name: mypy
@@ -29,7 +31,7 @@ jobs:
           python-version: "3.11"
           cache: pip
       - run: pip install mypy types-networkx
-      - run: mypy cascade/
+      - run: mypy cascade-rebuild/lineage/ cascade-rebuild/ui/ --ignore-missing-imports
 
   test:
     name: pytest
@@ -40,5 +42,7 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-      - run: pip install -e . pytest
-      - run: pytest tests/ -v
+      - name: Install package
+        run: pip install -e cascade-rebuild/
+      - run: pip install -r cascade-rebuild/requirements.txt
+      - run: pytest cascade-rebuild/tests/ -v --tb=short

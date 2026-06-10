@@ -47,3 +47,13 @@ dist/
 app_final.png
 app_screen.png
 cascade-rebuild-*.png
+
+# Stray test/debug scripts (not part of the package)
+browser_test.py
+check_cloud.py
+fill_form.py
+find_resources.py
+run_query.py
+test_demo.py
+test_flow.py
+test_rebuild.py

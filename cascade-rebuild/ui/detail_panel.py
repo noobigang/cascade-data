@@ -7,6 +7,8 @@ Includes the killer feature: column-level lineage table with:
 - Anchor (`id="cascade-detail-panel"`) for auto-scroll from the DAG
 """
 
+from __future__ import annotations
+
 import streamlit as st
 
 from lineage.impact import blast_radius_score, get_downstream, get_upstream

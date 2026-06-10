@@ -1,37 +1,72 @@
+# Python
 __pycache__/
-*.pyc
-.venv/
-venv/
-.env
-.env.local
-.streamlit/
-streamlit.config.py
-target/       # dbt build output
-*.manifest.json  # don't commit uploaded manifests
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
 
-# IDE
-.idea/
+# Virtual environments
+venv/
+env/
+.venv/
+ENV/
+
+# IDE / editor
 .vscode/
+.idea/
 *.swp
 *.swo
 
-# Logs
-*.log
-logs/
+# Testing / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Type checking
+.mypy_cache/
+.ruff_cache/
 
 # OS
 .DS_Store
 Thumbs.db
 
-# CI/CD secrets
-secrets.yml
-*.pem
-*.key
-
-# Mavis plan metadata
-.mavis/
-
-# Build artifacts
-dist/
+# Build / dist
 build/
-*.egg-info/
+dist/
+*.whl
+
+# Mavis artifacts
+.mavis/
+.scratch/
+
+# Stray test/debug scripts (not part of the package)
+browser_test.py
+check_cloud.py
+fill_form.py
+find_resources.py
+run_query.py
+test_demo.py
+test_flow.py
+test_rebuild.py
+args.json
+
+# Screenshots / temp images at the repo root
+app_final.png
+app_screen.png
+cascade-rebuild-demo.png
+cascade-rebuild-test.png
+cascade_after_demo.png
+cascade_app.png
+cascade_demo_clicked.png
+cascade_demo_loaded.png
+cascade_detail_test.png
+cascade_final.jpg
+cascade_final.png
+cascade_live.png
+cascade_screen.png
+cascade_screenshot.png
+cascade_source_detail.png
+cascade_source_selected.png

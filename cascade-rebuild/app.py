@@ -240,13 +240,25 @@ def main():
 
     # Auto-scroll + state bridge — listens for DAG node clicks and propagates
     # the selection back to Streamlit session state.
-    from ui.scroll_bridge import render_scroll_bridge
-    bridge_event = render_scroll_bridge()
-    if bridge_event and isinstance(bridge_event, dict):
-        new_uid = bridge_event.get("selected_node_uid")
-        if new_uid and new_uid != st.session_state.get("selected_node_uid"):
-            st.session_state.selected_node_uid = new_uid
-            st.rerun()
+    from ui.scroll_bridge import render_scroll_bridge, poll_pending_node
+    import json as _json
+    render_scroll_bridge()
+    pending = poll_pending_node(default=None)
+    if pending:
+        try:
+            p = _json.loads(pending) if isinstance(pending, str) else pending
+        except Exception:
+            p = None
+        if p and isinstance(p, dict):
+            at = p.get("at") or 0
+            uid = p.get("uid")
+            last_at = st.session_state.get("_bridge_last_at", 0)
+            if at > last_at:
+                st.session_state._bridge_last_at = at
+                # uid may be null (toggle-off)
+                if uid != st.session_state.get("selected_node_uid"):
+                    st.session_state.selected_node_uid = uid
+                    st.rerun()
 
     st.divider()
 

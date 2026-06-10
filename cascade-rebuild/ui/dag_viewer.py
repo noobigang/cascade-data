@@ -447,28 +447,28 @@ DAG_HTML = r"""
     updateNodeStyles();
     updateEdgeStyles();
 
-    // Notify Streamlit via:
-    // 1) The custom component's setComponentValue (preferred, used in Python wrapper)
-    // 2) Fallback: postMessage
-    try {
-      if (typeof window.__cascadeSetValue === 'function') {
-        window.__cascadeSetValue({ selected_node_uid: selectedNodeId, ts: Date.now() });
-      }
-    } catch (e) { /* ignore */ }
+    // Set the pending-node variable on EVERY ancestor window up to the top.
+    // The DAG and the bridge are in sibling iframes, so we need to walk the
+    // chain to make sure whichever window polls finds it.
+    const payload = { uid: selectedNodeId, at: Date.now() };
+    let w = window;
+    for (let i = 0; i < 8; i++) {
+      try {
+        w.cascadePendingNodeId = payload.uid;
+        w.cascadePendingNodeAt = payload.at;
+      } catch (e) {}
+      try {
+        if (w.parent && w.parent !== w) w = w.parent;
+        else break;
+      } catch (e) { break; }
+    }
 
+    // Also broadcast via postMessage for any listeners
     try {
       if (window.parent && window.parent !== window) {
-        window.parent.postMessage({
-          type: 'cascade_node_selected',
-          nodeId: selectedNodeId
-        }, '*');
-        // Also set a property that the scroll-bridge iframe polls for
-        try {
-          window.parent.cascadePendingNodeId = selectedNodeId;
-          window.parent.cascadePendingNodeAt = Date.now();
-        } catch (e) { /* cross-origin, ignore */ }
+        window.parent.postMessage({ type: 'cascade_node_selected', nodeId: selectedNodeId }, '*');
       }
-    } catch (e) { /* ignore */ }
+    } catch (e) {}
   }
 
   function updateNodeStyles() {

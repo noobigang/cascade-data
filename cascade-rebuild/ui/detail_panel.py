@@ -21,11 +21,18 @@ COLUMN_TABLE_CSS = """
     width: 100%;
     border-collapse: collapse;
     font-family: 'Inter', -apple-system, sans-serif;
-    font-size: 12px;
+    font-size: 11px;
     background: #161B22;
     border: 1px solid #30363D;
     border-radius: 8px;
     overflow: hidden;
+    table-layout: fixed;
+}
+.col-table th, .col-table td {
+    overflow: hidden;
+}
+.col-table th {
+    white-space: nowrap;
 }
 .col-table thead th {
     background: #21262D;
@@ -77,11 +84,12 @@ COLUMN_TABLE_CSS = """
 }
 .col-desc {
     color: #8B949E;
-    font-size: 11px;
-    line-height: 1.4;
-    max-width: 280px;
+    font-size: 10px;
+    line-height: 1.3;
+    max-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
+    white-space: nowrap;
 }
 .col-status {
     display: inline-flex;
@@ -492,7 +500,10 @@ def _render_columns_section(node: TableNode, graph: LineageGraph) -> None:
     table_html = (
         '<table class="col-table">'
         '<thead><tr>'
-        '<th>Column</th><th>Type</th><th>Description</th><th>Lineage</th>'
+        '<th style="width:38%">Column</th>'
+        '<th style="width:22%">Type</th>'
+        '<th style="width:30%">Description</th>'
+        '<th style="width:10%">Ln</th>'
         '</tr></thead>'
         '<tbody>' + ''.join(rows_html) + '</tbody>'
         '</table>'

@@ -187,51 +187,56 @@ def main():
     stats = _compute_stats(graph)
     render_hero(project_name="", stats=stats)
 
-    # ── DAG Viewer ──────────────────────────────────────────────────────────
+    # ── DAG Viewer + Detail Panel side by side ─────────────────────────────
     st.markdown("### Lineage Graph")
 
     dag_data = _build_dag_data(graph, sidebar_filters)
 
     if dag_data["nodes"]:
-        # Render the D3.js DAG. The component returns a dict with the latest
-        # click event from the iframe (or None if no click has happened).
-        current_selected = st.session_state.get("selected_node_uid")
-        click_event = render_dag_viewer(
-            dag_data,
-            height=700,
-            key="dag_viewer",
-            current_selected=current_selected,
-        )
+        # Side-by-side: DAG on left, Detail panel on right
+        col_dag, col_detail = st.columns([1, 1], gap="medium")
 
-        # If the iframe reported a new selection, sync it into session state
-        # and rerun so the sidebar highlight + detail panel update.
-        if click_event and isinstance(click_event, dict):
-            new_uid = click_event.get("selected_node_uid")
-            if new_uid != current_selected:
-                st.session_state.selected_node_uid = new_uid
-                st.rerun()
+        with col_dag:
+            # Render the D3.js DAG. The component returns a dict with the latest
+            # click event from the iframe (or None if no click has happened).
+            current_selected = st.session_state.get("selected_node_uid")
+            click_event = render_dag_viewer(
+                dag_data,
+                height=620,
+                key="dag_viewer",
+                current_selected=current_selected,
+            )
 
-        # DAG controls hint
-        st.caption(
-            "🖱️ Drag to pan · Scroll to zoom · Click node to select · Toggle filters in top-left"
-        )
+            # If the iframe reported a new selection, sync it into session state
+            # and rerun so the sidebar highlight + detail panel update.
+            if click_event and isinstance(click_event, dict):
+                new_uid = click_event.get("selected_node_uid")
+                if new_uid != current_selected:
+                    st.session_state.selected_node_uid = new_uid
+                    st.rerun()
+
+            # DAG controls hint
+            st.caption(
+                "🖱️ Drag to pan · Scroll to zoom · Click node to select · Toggle filters in top-left"
+            )
+
+        with col_detail:
+            # Selected node detail panel — always visible alongside the DAG
+            selected_uid = st.session_state.get("selected_node_uid")
+            if selected_uid and graph.has_node(selected_uid):
+                selected_node = graph.get_node(selected_uid)
+                with st.container():
+                    render_detail_panel(selected_node, graph)
+            else:
+                # Auto-select first node if none selected
+                if dag_data["nodes"]:
+                    first_uid = dag_data["nodes"][0]["id"]
+                    st.session_state.selected_node_uid = first_uid
+                    st.rerun()
+                else:
+                    st.info("No nodes to display")
     else:
         st.info("No nodes match the current filters.")
-
-    st.divider()
-
-    # ── Selected node detail panel ──────────────────────────────────────────
-    selected_uid = st.session_state.get("selected_node_uid")
-    if selected_uid and graph.has_node(selected_uid):
-        selected_node = graph.get_node(selected_uid)
-        with st.container():
-            render_detail_panel(selected_node, graph)
-    else:
-        # Auto-select first node if none selected
-        if dag_data["nodes"]:
-            first_uid = dag_data["nodes"][0]["id"]
-            st.session_state.selected_node_uid = first_uid
-            st.rerun()
 
     # Auto-scroll + state bridge — listens for DAG node clicks and propagates
     # the selection back to Streamlit session state.

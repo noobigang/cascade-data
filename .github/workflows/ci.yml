@@ -35,12 +35,13 @@ jobs:
           cache: pip
       - run: pip install mypy types-networkx
       - name: mypy
-        # Pass --explicit-package-bases so mypy can find the lineage package
-        # without an __init__.py-less tests directory. The find enumerates
-        # exactly the .py files we want to type-check.
+        # Pass --config-file so mypy picks up the [tool.mypy] section
+        # from cascade-rebuild/pyproject.toml (which loosens checks for
+        # this UI codebase). --explicit-package-bases avoids needing
+        # __init__.py in the tests directory.
         run: |
           FILES=$(find cascade-rebuild/lineage cascade-rebuild/ui -name "*.py" -not -path "*/__pycache__/*")
-          mypy $FILES --ignore-missing-imports --explicit-package-bases
+          mypy --config-file cascade-rebuild/pyproject.toml $FILES --explicit-package-bases
 
   test:
     name: pytest

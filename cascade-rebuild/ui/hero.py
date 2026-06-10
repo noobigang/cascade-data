@@ -598,7 +598,10 @@ def render_summary_stats(graph: LineageGraph):
             st.metric("Path Length", path_len)
             # Show as breadcrumb
             if path_len > 0:
-                path_names = [graph.get_node(u).name if graph.get_node(u) else u.split(".")[-1] for u in deepest_path[:5]]
+                path_names = []
+                for u in deepest_path[:5]:
+                    node = graph.get_node(u)
+                    path_names.append(node.name if node else u.split(".")[-1])
                 st.caption(" → ".join(path_names))
                 if path_len > 5:
                     st.caption(f"... and {path_len - 5} more")

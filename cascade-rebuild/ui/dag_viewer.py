@@ -492,10 +492,24 @@ DAG_HTML = r"""
 
   function isConnected(nodeId) {
     if (!selectedNodeId) return true;
-    return getVisibleEdges().some(e =>
-      (e.source === selectedNodeId && e.target === nodeId) ||
-      (e.target === selectedNodeId && e.source === nodeId)
-    );
+    // Walk the FULL upstream + downstream chain from selectedNodeId.
+    // Direct-neighbor only is too narrow for multi-hop dbt lineages
+    // (e.g. raw_marketing → stg_marketing → fct_marketing).
+    const seen = new Set([selectedNodeId]);
+    const stack = [selectedNodeId];
+    while (stack.length) {
+      const cur = stack.pop();
+      for (const e of getVisibleEdges()) {
+        let next = null;
+        if (e.source === cur) next = e.target;
+        else if (e.target === cur) next = e.source;
+        if (next && !seen.has(next)) {
+          seen.add(next);
+          stack.push(next);
+        }
+      }
+    }
+    return seen.has(nodeId);
   }
 
   // ── Filters ───────────────────────────────────────────────────────────

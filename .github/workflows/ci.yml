@@ -17,10 +17,13 @@ jobs:
           python-version: "3.11"
           cache: pip
       - run: pip install ruff
-      # Scope to the new app under cascade-rebuild/. The legacy cascade/
-      # directory is no longer maintained and its files are not linted.
-      # Use globs to avoid ruff complaining about missing __init__.py.
-      - run: ruff check cascade-rebuild/lineage/*.py cascade-rebuild/ui/*.py cascade-rebuild/app.py cascade-rebuild/tests/*.py
+      # Use find to enumerate all .py files under cascade-rebuild/, excluding
+      # the legacy cascade/ directory. Linux bash doesn't always expand globs
+      # inside `run` steps, so we list files explicitly.
+      - name: Lint with ruff
+        run: |
+          FILES=$(find cascade-rebuild -name "*.py" -not -path "*/.venv/*" -not -path "*/__pycache__/*" -not -path "*/build/*" -not -path "*/dist/*")
+          ruff check $FILES
 
   typecheck:
     name: mypy

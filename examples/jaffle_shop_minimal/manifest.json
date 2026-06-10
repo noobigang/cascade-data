@@ -1,0 +1,268 @@
+{
+  "metadata": {
+    "dbt_version": "1.8.0",
+    "generated_at": "2026-06-11T00:00:00.000000Z",
+    "invocation_id": "example-jaffle-shop-minimal"
+  },
+  "project_name": "jaffle_shop_minimal",
+  "nodes": {
+    "model.jaffle_shop_minimal.stg_orders": {
+      "unique_id": "model.jaffle_shop_minimal.stg_orders",
+      "resource_type": "model",
+      "name": "stg_orders",
+      "schema": "main",
+      "database": "jaffle_shop",
+      "description": "Cleaned and typed orders",
+      "depends_on": {
+        "nodes": [
+          "source.jaffle_shop_minimal.raw.orders"
+        ]
+      },
+      "columns": {
+        "order_id": {
+          "name": "order_id",
+          "data_type": "VARCHAR",
+          "description": "Primary key of the order"
+        },
+        "customer_id": {
+          "name": "customer_id",
+          "data_type": "VARCHAR",
+          "description": "Foreign key to dim_customers.customer_id"
+        },
+        "order_date": {
+          "name": "order_date",
+          "data_type": "DATE",
+          "description": "Date the order was placed"
+        },
+        "status": {
+          "name": "status",
+          "data_type": "VARCHAR",
+          "description": "Order status"
+        },
+        "amount": {
+          "name": "amount",
+          "data_type": "DECIMAL",
+          "description": "Order total in USD"
+        }
+      },
+      "raw_code": "with source as (\n    select id as order_id,\n           user_id as customer_id,\n           order_date,\n           status,\n           coalesce(amount, 0) as amount\n    from {{ source('raw', 'orders') }}\n)\nselect * from source",
+      "compiled_code": "with source as (\n    select id as order_id,\n           user_id as customer_id,\n           order_date,\n           status,\n           coalesce(amount, 0) as amount\n    from raw.orders\n)\nselect * from source"
+    },
+    "model.jaffle_shop_minimal.stg_customers": {
+      "unique_id": "model.jaffle_shop_minimal.stg_customers",
+      "resource_type": "model",
+      "name": "stg_customers",
+      "schema": "main",
+      "database": "jaffle_shop",
+      "description": "Cleaned and typed customers",
+      "depends_on": {
+        "nodes": [
+          "source.jaffle_shop_minimal.raw.customers"
+        ]
+      },
+      "columns": {
+        "customer_id": {
+          "name": "customer_id",
+          "data_type": "VARCHAR",
+          "description": "Primary key of the customer"
+        },
+        "first_name": {
+          "name": "first_name",
+          "data_type": "VARCHAR",
+          "description": "Customer's first name"
+        },
+        "last_name": {
+          "name": "last_name",
+          "data_type": "VARCHAR",
+          "description": "Customer's last name"
+        },
+        "full_name": {
+          "name": "full_name",
+          "data_type": "VARCHAR",
+          "description": "Customer's full name (first + last)"
+        },
+        "email": {
+          "name": "email",
+          "data_type": "VARCHAR",
+          "description": "Customer's email address"
+        },
+        "created_at": {
+          "name": "created_at",
+          "data_type": "TIMESTAMP",
+          "description": "When the customer was created"
+        }
+      },
+      "raw_code": "with source as (\n    select id as customer_id,\n           first_name,\n           last_name,\n           first_name || ' ' || last_name as full_name,\n           email,\n           created_at\n    from {{ source('raw', 'customers') }}\n)\nselect * from source",
+      "compiled_code": "with source as (\n    select id as customer_id,\n           first_name,\n           last_name,\n           first_name || ' ' || last_name as full_name,\n           email,\n           created_at\n    from raw.customers\n)\nselect * from source"
+    },
+    "model.jaffle_shop_minimal.fct_orders": {
+      "unique_id": "model.jaffle_shop_minimal.fct_orders",
+      "resource_type": "model",
+      "name": "fct_orders",
+      "schema": "main",
+      "database": "jaffle_shop",
+      "description": "Fact table of orders enriched with customer data",
+      "depends_on": {
+        "nodes": [
+          "model.jaffle_shop_minimal.stg_orders",
+          "model.jaffle_shop_minimal.stg_customers"
+        ]
+      },
+      "columns": {
+        "order_key": {
+          "name": "order_key",
+          "data_type": "VARCHAR",
+          "description": "Surrogate primary key"
+        },
+        "order_id": {
+          "name": "order_id",
+          "data_type": "VARCHAR",
+          "description": "Natural order ID from the source system"
+        },
+        "customer_key": {
+          "name": "customer_key",
+          "data_type": "VARCHAR",
+          "description": "Foreign key to dim_customers"
+        },
+        "order_date": {
+          "name": "order_date",
+          "data_type": "DATE",
+          "description": "Date the order was placed"
+        },
+        "status": {
+          "name": "status",
+          "data_type": "VARCHAR",
+          "description": "Order status (PLACED / SHIPPED / COMPLETED / RETURNED / UNKNOWN)"
+        },
+        "gross_revenue": {
+          "name": "gross_revenue",
+          "data_type": "DECIMAL",
+          "description": "Order total in USD"
+        },
+        "customer_name": {
+          "name": "customer_name",
+          "data_type": "VARCHAR",
+          "description": "Denormalized customer full name from dim_customers"
+        }
+      },
+      "raw_code": "with orders as (select * from {{ ref('stg_orders') }}),\n     customers as (select * from {{ ref('stg_customers') }}),\n     enriched as (\n       select md5(o.order_id) as order_key,\n              o.order_id,\n              c.customer_key,\n              o.order_date,\n              o.status,\n              o.amount as gross_revenue,\n              c.full_name as customer_name\n       from orders o\n       left join customers c on o.customer_id = c.customer_id\n     ),\n     final as (\n       select order_key, order_id, customer_key, order_date,\n              case when status = 'placed' then 'PLACED'\n                   when status = 'shipped' then 'SHIPPED'\n                   when status = 'completed' then 'COMPLETED'\n                   when status = 'returned' then 'RETURNED'\n                   else 'UNKNOWN' end as status,\n              gross_revenue, customer_name\n       from enriched\n     )\nselect * from final",
+      "compiled_code": "with orders as (select * from main.stg_orders),\n     customers as (select * from main.stg_customers),\n     enriched as (\n       select md5(o.order_id) as order_key,\n              o.order_id,\n              c.customer_key,\n              o.order_date,\n              o.status,\n              o.amount as gross_revenue,\n              c.full_name as customer_name\n       from orders o\n       left join customers c on o.customer_id = c.customer_id\n     ),\n     final as (\n       select order_key, order_id, customer_key, order_date,\n              case when status = 'placed' then 'PLACED'\n                   when status = 'shipped' then 'SHIPPED'\n                   when status = 'completed' then 'COMPLETED'\n                   when status = 'returned' then 'RETURNED'\n                   else 'UNKNOWN' end as status,\n              gross_revenue, customer_name\n       from enriched\n     )\nselect * from final"
+    },
+    "model.jaffle_shop_minimal.dim_customers": {
+      "unique_id": "model.jaffle_shop_minimal.dim_customers",
+      "resource_type": "model",
+      "name": "dim_customers",
+      "schema": "main",
+      "database": "jaffle_shop",
+      "description": "Customer dimension",
+      "depends_on": {
+        "nodes": [
+          "model.jaffle_shop_minimal.stg_customers"
+        ]
+      },
+      "columns": {
+        "customer_key": {
+          "name": "customer_key",
+          "data_type": "VARCHAR",
+          "description": "Surrogate primary key"
+        },
+        "customer_id": {
+          "name": "customer_id",
+          "data_type": "VARCHAR",
+          "description": "Natural customer ID"
+        },
+        "full_name": {
+          "name": "full_name",
+          "data_type": "VARCHAR",
+          "description": "Customer's full name"
+        },
+        "email": {
+          "name": "email",
+          "data_type": "VARCHAR",
+          "description": "Customer's email"
+        },
+        "created_at": {
+          "name": "created_at",
+          "data_type": "TIMESTAMP",
+          "description": "When the customer was first seen"
+        }
+      },
+      "raw_code": "with customers as (select * from {{ ref('stg_customers') }}),\n     renamed as (\n       select md5(customer_id) as customer_key,\n              customer_id, full_name, email, created_at\n       from customers\n     )\nselect * from renamed",
+      "compiled_code": "with customers as (select * from main.stg_customers),\n     renamed as (\n       select md5(customer_id) as customer_key,\n              customer_id, full_name, email, created_at\n       from customers\n     )\nselect * from renamed"
+    }
+  },
+  "sources": {
+    "source.jaffle_shop_minimal.raw.orders": {
+      "unique_id": "source.jaffle_shop_minimal.raw.orders",
+      "resource_type": "source",
+      "name": "orders",
+      "source_name": "raw",
+      "schema": "raw",
+      "database": "jaffle_shop",
+      "description": "Raw orders from the OLTP system",
+      "columns": {
+        "order_id": {
+          "name": "order_id",
+          "data_type": "VARCHAR",
+          "description": "Primary key of the order"
+        },
+        "customer_id": {
+          "name": "customer_id",
+          "data_type": "VARCHAR",
+          "description": "Foreign key to customers.customer_id"
+        },
+        "order_date": {
+          "name": "order_date",
+          "data_type": "DATE",
+          "description": "When the order was placed"
+        },
+        "status": {
+          "name": "status",
+          "data_type": "VARCHAR",
+          "description": "Order status (placed / shipped / completed / returned)"
+        },
+        "amount": {
+          "name": "amount",
+          "data_type": "DECIMAL",
+          "description": "Order total in USD"
+        }
+      }
+    },
+    "source.jaffle_shop_minimal.raw.customers": {
+      "unique_id": "source.jaffle_shop_minimal.raw.customers",
+      "resource_type": "source",
+      "name": "customers",
+      "source_name": "raw",
+      "schema": "raw",
+      "database": "jaffle_shop",
+      "description": "Raw customer records",
+      "columns": {
+        "customer_id": {
+          "name": "customer_id",
+          "data_type": "VARCHAR",
+          "description": "Primary key of the customer"
+        },
+        "first_name": {
+          "name": "first_name",
+          "data_type": "VARCHAR",
+          "description": "Customer's first name"
+        },
+        "last_name": {
+          "name": "last_name",
+          "data_type": "VARCHAR",
+          "description": "Customer's last name"
+        },
+        "email": {
+          "name": "email",
+          "data_type": "VARCHAR",
+          "description": "Customer's email address"
+        },
+        "created_at": {
+          "name": "created_at",
+          "data_type": "TIMESTAMP",
+          "description": "When the customer was created"
+        }
+      }
+    }
+  }
+}

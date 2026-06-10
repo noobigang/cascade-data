@@ -1,0 +1,51 @@
+version: 2
+
+models:
+  - name: fct_orders
+    description: "Fact table of orders enriched with customer data"
+    columns:
+      - name: order_key
+        description: "Surrogate primary key"
+        tests:
+          - not_null
+          - unique
+      - name: order_id
+        description: "Natural order ID from the source system"
+        tests:
+          - not_null
+      - name: customer_key
+        description: "Foreign key to dim_customers"
+        tests:
+          - not_null
+      - name: order_date
+        description: "Date the order was placed"
+        tests:
+          - not_null
+      - name: status
+        description: "Order status"
+      - name: gross_revenue
+        description: "Order total in USD"
+        tests:
+          - not_null
+      - name: customer_name
+        description: "Denormalized customer full name from dim_customers"
+
+  - name: dim_customers
+    description: "Customer dimension"
+    columns:
+      - name: customer_key
+        description: "Surrogate primary key"
+        tests:
+          - not_null
+          - unique
+      - name: customer_id
+        description: "Natural customer ID"
+        tests:
+          - not_null
+          - unique
+      - name: full_name
+        description: "Customer's full name"
+      - name: email
+        description: "Customer's email"
+      - name: created_at
+        description: "When the customer was first seen"

@@ -232,14 +232,48 @@ h2, h3, h4, h5, h6 {
 .type-badge.seed { background: #8B949E20; color: #8B949E; }
 .type-badge.snapshot { background: #D2992220; color: #D29922; }
 
-/* Expander styling */
-.streamlit-expanderHeader {
+/* Expander styling — Streamlit 1.58+ uses different class names. The expander
+   <summary> is identified by data-testid="stExpanderToggleIcon" sibling or
+   by being a direct child of <details>. We target via the <details> wrapper. */
+details > summary {
     background: #161B22 !important;
     border: 1px solid #30363D !important;
     border-radius: 8px !important;
     color: #E6EDF3 !important;
     font-family: 'JetBrains Mono', monospace !important;
     font-size: 13px !important;
+    padding-left: 16px !important;
+}
+/* Hide the broken Material chevron icon — the icon font isn't loaded in our
+   dark theme, so the span renders its text content ("keyboard_arrow_right")
+   literally and overlaps with our emoji. Make the text invisible; we draw our
+   own chevron via a pseudo-element on the parent summary. */
+details summary span[data-testid="stIconMaterial"] {
+    color: transparent !important;
+    font-size: 0 !important;
+    width: 18px !important;
+    height: 18px !important;
+    flex-shrink: 0 !important;
+    text-indent: -9999px !important;
+    overflow: hidden !important;
+}
+details > summary > span > span:first-child {
+    position: relative !important;
+    margin-right: 8px !important;
+    flex-shrink: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+details > summary > span > span:first-child::before {
+    content: "▶" !important;
+    color: #8B949E !important;
+    font-size: 12px !important;
+    pointer-events: none !important;
+}
+details[open] > summary > span > span:first-child::before {
+    content: "▼" !important;
+    color: #58A6FF !important;
 }
 
 .streamlit-expanderContent {

@@ -305,6 +305,18 @@ DAG_HTML = r"""
       .attr('d', 'M0,-5L10,0L0,5')
       .attr('fill', '#58A6FF');
 
+    // ClipPath: prevents text from overflowing the node card. Updated
+    // dimensions must match NODE_W / NODE_H below.
+    defs.append('clipPath')
+      .attr('id', 'node-card-clip')
+      .append('rect')
+      .attr('x', 0)
+      .attr('y', 0)
+      .attr('width', 220)
+      .attr('height', 56)
+      .attr('rx', 6)
+      .attr('ry', 6);
+
     gRoot = svg.append('g').attr('class', 'g-root');
     gEdges = gRoot.append('g').attr('class', 'g-edges');
     gNodes = gRoot.append('g').attr('class', 'g-nodes');
@@ -333,9 +345,11 @@ DAG_HTML = r"""
     });
     g.setDefaultEdgeLabel(() => ({}));
 
-    // Node dimensions (must match the rect we draw)
-    const NODE_W = 180;
-    const NODE_H = 52;
+    // Node dimensions (must match the rect we draw).
+    // Width is generous so even long names like 'int_order_enrichment' fit
+    // without overflow. Height is tall enough to stack name + schema cleanly.
+    const NODE_W = 220;
+    const NODE_H = 56;
 
     visibleNodes.forEach(n => g.setNode(n.id, { width: NODE_W, height: NODE_H, node: n }));
     const visibleEdges = getVisibleEdges();
@@ -396,42 +410,55 @@ DAG_HTML = r"""
       .attr('rx', 6)
       .attr('ry', 6);
 
-    // Type badge (top-left)
+    // ── Top row: type badge (left) + column count (right) ───────────────
+    // Both are small and live on a single 14px row at the top of the card.
+    // Type badge
     nodeEnter.append('rect')
       .attr('class', 'badge-bg')
       .attr('x', 8)
-      .attr('y', 8)
-      .attr('width', 32)
-      .attr('height', 14)
-      .attr('rx', 3)
-      .attr('ry', 3);
+      .attr('y', 6)
+      .attr('width', 30)
+      .attr('height', 13)
+      .attr('rx', 2)
+      .attr('ry', 2);
 
     nodeEnter.append('text')
       .attr('class', 'node-type-badge')
-      .attr('x', 24)
-      .attr('y', 15)
+      .attr('x', 23)   // 8 + 30/2 = 23
+      .attr('y', 12.5) // 6 + 13/2 = 12.5
       .text(d => (d.resource_type || 'model').toUpperCase().slice(0, 3));
 
-    // Main name
-    nodeEnter.append('text')
-      .attr('class', 'node-name')
-      .attr('x', NODE_W / 2)
-      .attr('y', NODE_H / 2 - 4)
-      .text(d => truncate(d.name || d.label || d.id.split('.').pop(), 22));
-
-    // Sub (schema or schema.table)
-    nodeEnter.append('text')
-      .attr('class', 'node-sub')
-      .attr('x', NODE_W / 2)
-      .attr('y', NODE_H / 2 + 12)
-      .text(d => d.schema || '');
-
-    // Column count pill (bottom-right)
+    // Column count (top-right)
     nodeEnter.append('text')
       .attr('class', 'node-meta')
-      .attr('x', NODE_W - 10)
-      .attr('y', NODE_H - 8)
+      .attr('x', NODE_W - 8)
+      .attr('y', 12.5)
+      .attr('text-anchor', 'end')
       .text(d => d.column_count != null ? `${d.column_count} cols` : '');
+
+    // ── Main row: full-width name (clipped to card) ─────────────────────
+    // Wrapped in a <g> with clip-path so long names get cut off at the edge
+    // instead of bleeding into the schema/columns.
+    const nameGroup = nodeEnter.append('g')
+      .attr('class', 'node-name-clip')
+      .attr('clip-path', 'url(#node-card-clip)');
+
+    nameGroup.append('text')
+      .attr('class', 'node-name')
+      .attr('x', NODE_W / 2)
+      .attr('y', 33)
+      .text(d => truncate(d.name || d.label || d.id.split('.').pop(), 24));
+
+    // ── Bottom row: schema name (clipped, gray) ─────────────────────────
+    const subGroup = nodeEnter.append('g')
+      .attr('class', 'node-sub-clip')
+      .attr('clip-path', 'url(#node-card-clip)');
+
+    subGroup.append('text')
+      .attr('class', 'node-sub')
+      .attr('x', NODE_W / 2)
+      .attr('y', 48)
+      .text(d => d.schema || '');
 
     nodeSel.exit().remove();
 

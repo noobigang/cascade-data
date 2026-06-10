@@ -54,8 +54,8 @@ jobs:
       - name: Install dependencies
         run: pip install -r cascade-rebuild/requirements.txt
       - name: Run tests
-        # Add tests/ to PYTHONPATH and pass the test file directly so pytest
-        # doesn't need an __init__.py in the tests dir.
+        # Pass the test file as an absolute path and set PYTHONPATH so the
+        # test can import the lineage and ui packages. Avoids needing a
+        # tests/__init__.py.
         run: |
-          cd cascade-rebuild
-          PYTHONPATH=. pytest tests/test_lineage.py -v --tb=short
+          PYTHONPATH=cascade-rebuild pytest cascade-rebuild/tests/test_lineage.py -v --tb=short

@@ -31,10 +31,10 @@ pip install -r requirements.txt
 pip install -r requirements-dev.txt   # if it exists
 
 # 5. Run the app
-streamlit run cascade/app.py
+streamlit run app.py
 ```
 
-The app will open at [http://localhost:8501](http://localhost:8501).
+The app will open at [http://localhost:8502](http://localhost:8502).
 
 ### Running Tests
 
@@ -52,21 +52,45 @@ pytest --cov=cascade --cov-report=term-missing
 
 ```
 cascade-data/
-├── cascade/
-│   ├── app.py                  # Streamlit entrypoint — start here
-│   ├── parser/                 # manifest.json → structured data
-│   ├── graph/                  # NetworkX graph operations
-│   ├── ui/                     # Streamlit UI components
-│   └── utils/                  # Shared utilities
+├── app.py                       # Streamlit entrypoint — start here
+├── pyproject.toml
+├── requirements.txt
+├── README.md
+├── LICENSE
+├── SECURITY.md
+├── SETUP_WINDOWS.md
+├── SETUP_UNIX.md
+├── CHANGELOG.md
+│
+├── lineage/                     # Core data model and parsing
+│   ├── models.py                # TableNode, ColumnNode, LineageGraph
+│   ├── parser.py                # manifest.json → LineageGraph
+│   ├── sql_lineage.py            # SQLGlot column-level extraction
+│   └── impact.py                 # blast radius, risk scoring
+│
+├── ui/                          # Streamlit UI components
+│   ├── dag_viewer.py
+│   ├── detail_panel.py
+│   ├── sidebar.py
+│   ├── hero.py
+│   ├── upload_zone.py
+│   └── scroll_bridge.py
+│
+├── tests/                       # Test suite — 44 tests
+│   └── test_lineage.py
+│
+├── demo/                        # Sample data
+│   ├── manifest.json
+│   └── build_manifest.py
+│
 ├── docs/                        # This directory
+│   ├── USAGE.md
 │   ├── ARCHITECTURE.md
 │   ├── COLUMN_LINEAGE.md
-│   ├── DEPLOY.md
-│   └── CONTRIBUTING.md         # (this file)
-├── tests/                       # Test suite (add here)
-├── requirements.txt
-├── SPEC.md                      # Full product specification
-└── README.md
+│   └── CONTRIBUTING.md
+│
+└── .github/
+    └── workflows/ci.yml
 ```
 
 ---
@@ -76,8 +100,7 @@ cascade-data/
 ### Python Style
 
 - Follow **PEP 8**
-- Use `black` for formatting (line length: 100)
-- Use `isort` for import sorting
+- Use `ruff` for linting (replaces `black` + `isort` + `flake8` — single tool, faster)
 - Type hints for all public functions
 
 ```python
@@ -97,7 +120,7 @@ Follow [Conventional Commits](https://www.conventionalcommits.org/):
 ```
 feat: add column-level edge labels on DAG hover
 fix: handle missing 'columns' key in seed nodes
-docs: add DEPLOY.md with Docker instructions
+docs: add USAGE.md with dbt integration walkthrough
 refactor: split impact_analyzer from lineage_graph
 test: add pytest suite for column_resolver
 ```
@@ -113,11 +136,10 @@ test: add pytest suite for column_resolver
 
 3. **Run local checks**:
    ```bash
-   black cascade/
-   isort cascade/
-   mypy cascade/          # if type stubs are available
-   pytest tests/
-   streamlit run cascade/app.py  # manual smoke test
+   ruff check .
+   mypy --config-file pyproject.toml lineage/ ui/ --explicit-package-bases
+   pytest tests/ -v
+   streamlit run app.py   # manual smoke test
    ```
 
 4. **Open a PR** against `main`:
@@ -127,7 +149,7 @@ test: add pytest suite for column_resolver
 
 5. **Review**: a maintainer will review within a few days. Address feedback, don't force-push.
 
-6. **Merge**: squash-merge or merge-commit at maintainer's discretion.
+6. **Merge**: squash-merge at maintainer's discretion.
 
 ---
 

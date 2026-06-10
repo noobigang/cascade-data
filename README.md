@@ -1,172 +1,311 @@
----
-title: Cascade
-emoji: 🧬
-sdk: static
-color: 0d1117
----
+# 🌊 Cascade — Column-Level Data Lineage for dbt
 
-<p align="center">
-  <img src="docs/demo.png" alt="Cascade — Column-Level Data Lineage" width="800" />
-</p>
+> **Local-first lineage dashboard for dbt projects.**
+> Drop in your `manifest.json`. Get a clickable DAG, column-level dependencies, blast-radius analysis, and impact reports. Nothing leaves your machine.
 
-# Cascade — Column-Level Data Lineage 🧬
-
-<p>
-  <a href="https://github.com/noobigang/cascade-data/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT" /></a>
-  <a href="https://github.com/noobigang/cascade-data/stargazers"><img src="https://img.shields.io/github/stars/noobigang/cascade-data?style=flat&logo=github" alt="GitHub Stars" /></a>
-  <a href="https://huggingface.co/spaces/cascade-data"><img src="https://img.shields.io/badge/Deploy-Hugging%20Face%20Spaces-FFD9E9?style=flat" alt="Hugging Face Spaces" /></a>
-  <a href="https://pypi.org/project/streamlit/"><img src="https://img.shields.io/badge/Python-3.9+-green.svg" alt="Python 3.9+" /></a>
-</p>
-
-**Cascade** is an interactive column-level data lineage tool for dbt projects. Drop in your `manifest.json` and instantly see the full blast radius of any model or column change — no setup, no auth, no database.
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![Tests](https://img.shields.io/badge/tests-44%20passing-brightgreen.svg)](tests/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
+[![Type checked: mypy](https://img.shields.io/badge/type%20checked-mypy-blue.svg)](https://mypy.readthedocs.io/)
+[![Self-hosted only](https://img.shields.io/badge/deployment-self--hosted-orange.svg)](SECURITY.md)
 
 ---
 
-## ✨ Feature Highlights
+## What is Cascade?
 
-| Feature | Description |
-|---|---|
-| 🧬 **Column-Level Lineage** | Trace data flows from source to sink at the column granularity, not just model-level |
-| 💥 **Blast Radius Analysis** | Instantly see how many models, dashboards, and reports would break if you change a column |
-| 📊 **Risk Scoring** | Color-coded risk indicators (🟢 Low / 🟡 Medium / 🔴 High) based on downstream impact |
-| 🔗 **Share Cards** | Generate a one-click shareable URL — encode the full DAG view state, no account needed |
-| ⚠️ **Two-Manifest Diff** (planned) | Upload before/after manifests to highlight breaking changes, dropped columns, and renamed fields |
-| 📤 **Export** | Download lineage as JSON, blast-radius reports as Markdown, or the DAG as PNG/SVG |
-| 🌐 **Hugging Face Spaces** | Auto-deploys on every push — anyone can explore without installing anything |
+Cascade is a single-user dashboard for inspecting the **column-level** lineage of a dbt project. It reads the `manifest.json` produced by `dbt compile` or `dbt build`, parses the compiled SQL with [SQLGlot](https://github.com/tobymao/sqlglot), and renders an interactive DAG where every node and every column is clickable.
 
----
+It's the tool you reach for when someone says "what breaks if I drop this column?" or "show me the path from this Snowflake raw table to this dashboard".
 
-## 📊 Comparison
+### Why use it?
 
-| Feature | Cascade | dbt-colibri | elementary |
-|---|---|---|---|
-| Column-level lineage | ✅ Native | ❌ Model-only | ⚠️ Partial |
-| Interactive DAG | ✅ Live, clickable | ⚠️ Static HTML | ⚠️ Static HTML |
-| Blast radius analysis | ✅ Full tree | ❌ | ❌ |
-| Risk scoring (🟢🟡🔴) | ✅ | ❌ | ❌ |
-| Two-manifest diff | ⚠️ Planned | ❌ | ✅ |
-| Share cards / URL state | ✅ | ❌ | ❌ |
-| Deployment | ✅ Auto (HF Spaces) | ⚠️ Manual | ⚠️ Manual |
-| Open source | ✅ | ✅ | ✅ |
-| No auth required | ✅ | ✅ | ❌ |
-| dbt test overlay | Planned (v1.1) | ❌ | ✅ |
-| BI tool integration | Planned (v1.2) | ❌ | ✅ |
+| | dbt docs | dbt-colibri | elementary | **Cascade** |
+|---|---|---|---|---|
+| Model-level lineage | ✅ | ✅ | ✅ | ✅ |
+| **Column-level** lineage | ❌ | ⚠️ Limited | ⚠️ Limited | ✅ Native |
+| Interactive DAG (clickable) | ⚠️ Static | ⚠️ Static | ⚠️ Static | ✅ Live |
+| Blast-radius analysis | ❌ | ❌ | ❌ | ✅ Full tree |
+| Risk scoring (🟢🟡🔴) | ❌ | ❌ | ❌ | ✅ |
+| Per-column upstream/downstream | ❌ | ❌ | ❌ | ✅ |
+| Manifest diff (before/after) | ❌ | ❌ | ✅ | Planned |
+| Runs on localhost | ✅ | ✅ | ✅ | ✅ |
+| **No account / no auth / no cloud** | ❌ (dbt Cloud) | ❌ (HF Spaces) | ❌ (cloud) | ✅ |
+| **No data leaves your machine** | ❌ | ❌ | ❌ | ✅ |
+| Open source (MIT) | ✅ | ✅ | ✅ | ✅ |
 
 ---
 
-## 🚀 Quick Start
+## 📑 Table of contents
+
+- [Quick start](#-quick-start)
+- [How to use it with your dbt project](#-how-to-use-it-with-your-dbt-project)
+- [What the app shows you](#-what-the-app-shows-you)
+- [Architecture](#-architecture)
+- [Project layout](#-project-layout)
+- [Running the test suite](#-running-the-test-suite)
+- [FAQ](#-faq)
+- [Contributing](docs/CONTRIBUTING.md)
+- [Security & privacy](SECURITY.md)
+- [License](LICENSE)
+
+---
+
+## ⚡ Quick start
+
+You need **Python 3.11 or newer** on your machine. That's it.
 
 ```bash
-# 1. Generate your manifest
-dbt build   # produces target/manifest.json
+# 1. Clone
+git clone https://github.com/noobigang/cascade-data.git
+cd cascade-data
 
-# 2. Open the app
-#    https://huggingface.co/spaces/cascade-data
-#    OR run locally:
+# 2. Create a virtual environment
+python3 -m venv .venv
+source .venv/bin/activate        # macOS / Linux
+# .venv\Scripts\activate         # Windows PowerShell
+
+# 3. Install
 pip install -r requirements.txt
-streamlit run cascade/app.py
 
-# 3. Drop your manifest.json — Cascade maps everything instantly
+# 4. Run
+streamlit run app.py
 ```
 
-Three lines. That's it. No credentials, no database, no dbt Cloud.
+The app opens at **http://localhost:8502** in your browser. Click **🎲 Try Demo** to load a sample 20-node e-commerce project, or upload your own `manifest.json`.
+
+> 🔒 The app binds to `127.0.0.1:8502` only. It is **not** reachable from the internet.
+
+For platform-specific setup (Windows / macOS / Linux troubleshooting), see [SETUP_WINDOWS.md](SETUP_WINDOWS.md) or [SETUP_UNIX.md](SETUP_UNIX.md).
+
+---
+
+## 🧬 How to use it with your dbt project
+
+The full walkthrough is in [docs/USAGE.md](docs/USAGE.md). The short version:
+
+### Step 1 — generate the manifest
+
+In your dbt project:
+
+```bash
+dbt build
+# or: dbt compile
+```
+
+This produces `target/manifest.json`. Optionally also `target/catalog.json` (richer column descriptions from the warehouse).
+
+### Step 2 — open Cascade
+
+```bash
+streamlit run app.py
+```
+
+### Step 3 — upload
+
+Drag `target/manifest.json` onto the **📦 Upload** area in the sidebar. (Optionally drop `target/catalog.json` too.)
+
+Cascade parses it in about 1-3 seconds for a 200-model project and renders the full lineage graph.
+
+### Step 4 — explore
+
+- **Click any node** to see its columns, types, and SQL.
+- **Click a column** to see its upstream and downstream sub-tree at column granularity.
+- **Click "View Full Blast Radius"** to see every model, every column, and every other thing affected by a change.
+- **Use the search box** to jump to any model or column.
+- **Use the filter chips** to show only models, only sources, only seeds.
+
+---
+
+## 👁️ What the app shows you
+
+### The DAG (left panel)
+
+- **Nodes** are dbt resources — models, sources, seeds, snapshots. Colored by type (blue=models, green=sources, gray=seeds, orange=snapshots).
+- **Edges** are `ref()` / `source()` references. Hover to see the source column.
+- **Click a node** to see its detail panel and its full column lineage.
+- **Drag to pan**, **scroll to zoom**, **click-and-hold to drag a node** for fine-tuning.
+
+### The detail panel (right side of DAG)
+
+For the selected node:
+
+- **Header** — type, schema, upstream/downstream count, risk score.
+- **Columns** — name, data type, description, lineage indicator (colored dot).
+  - 🟢 = leaf column (no upstream)
+  - 🟡 = transformed column (modified)
+  - 🔴 = passthrough column (verbatim from upstream)
+- **Compiled SQL** and **Raw SQL** — expand to see what dbt will actually run.
+- **Upstream / Downstream** — every other model this depends on or is depended on by.
+
+### The blast-radius panel (below)
+
+- **Risk score** with 🟢🟡🔴 indicator.
+- **Affected models** — count and list.
+- **Affected columns** — count and list.
+- **Risk reasons** — why this score.
 
 ---
 
 ## 🏗️ Architecture
 
 ```
-manifest.json
-      │
-      ▼
-┌─────────────────────┐
-│  manifest_parser.py  │  ← extracts nodes, columns, refs, tests
-└──────────┬──────────┘
-           │
-           ▼
-┌─────────────────────┐
-│  NetworkX DiGraph   │  ← directed graph of model → column dependencies
-└──────────┬──────────┘
-           │
-           ▼
-┌─────────────────────┐
-│   graph_builder.py  │  ← converts to PyVis HTML + edge labels
-└──────────┬──────────┘
-           │
-           ▼
-┌─────────────────────┐
-│   Streamlit app.py  │  ← renders DAG, search, detail panel, share card
-└─────────────────────┘
+                 ┌────────────────────┐
+   manifest.json │  parser.py         │
+   ────────────► │  - extract nodes   │
+                 │  - extract edges   │
+                 │  - extract columns │
+                 └─────────┬──────────┘
+                           │
+                           ▼
+                 ┌────────────────────┐
+                 │  models.py         │
+                 │  LineageGraph      │ ◄── NetworkX DiGraph
+                 │  (DiGraph wrapper) │
+                 └─────────┬──────────┘
+                           │
+                           ▼
+                 ┌────────────────────┐
+                 │  sql_lineage.py     │ ◄── SQLGlot parses compiled SQL
+                 │  ColumnLineage      │     and extracts column-level
+                 │  records            │     dependencies
+                 └─────────┬──────────┘
+                           │
+                           ▼
+                 ┌────────────────────┐
+                 │  impact.py          │
+                 │  - blast radius     │
+                 │  - risk scoring     │
+                 │  - most connected   │
+                 └─────────┬──────────┘
+                           │
+                           ▼
+                 ┌────────────────────┐
+                 │  Streamlit UI       │ ◄── D3.js DAG + tables
+                 │  app.py             │
+                 └────────────────────┘
 ```
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full module breakdown.
+The full module-by-module breakdown is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). The column-lineage extraction algorithm is in [docs/COLUMN_LINEAGE.md](docs/COLUMN_LINEAGE.md).
 
 ---
 
-## 🌐 Deployment
+## 📂 Project layout
 
-### Option A — Hugging Face Spaces (Recommended)
+```
+cascade-data/
+├── app.py                    ← Streamlit entry point
+├── pyproject.toml            ← project metadata, ruff/mypy/pytest config
+├── requirements.txt          ← pinned runtime dependencies
+├── README.md                 ← you are here
+├── SETUP_WINDOWS.md          ← step-by-step for Windows
+├── SETUP_UNIX.md             ← step-by-step for macOS / Linux
+├── SECURITY.md               ← why this app is local-only
+├── CHANGELOG.md              ← version history
+├── LICENSE                   ← MIT
+├── CODE_OF_CONDUCT.md        ← community standards
+│
+├── lineage/
+│   ├── __init__.py
+│   ├── models.py             ← TableNode, ColumnNode, ColumnLineage, LineageGraph
+│   ├── parser.py             ← manifest.json → LineageGraph
+│   ├── sql_lineage.py        ← SQLGlot column-level extraction
+│   └── impact.py             ← blast radius, risk scoring, connectivity
+│
+├── ui/
+│   ├── __init__.py
+│   ├── dag_viewer.py         ← D3.js DAG (embedded HTML)
+│   ├── hero.py               ← dark theme + hero section
+│   ├── sidebar.py            ← upload, filters, resource list
+│   ├── detail_panel.py       ← node detail + column table
+│   ├── scroll_bridge.py      ← DAG click → state bridge
+│   └── upload_zone.py        ← manifest uploader
+│
+├── tests/
+│   └── test_lineage.py        ← 44 tests (data models, parser, SQL lineage, impact)
+│
+├── demo/
+│   ├── manifest.json          ← sample 20-node e-commerce project
+│   └── build_manifest.py      ← regenerate the sample
+│
+├── docs/
+│   ├── USAGE.md               ← step-by-step with your dbt project
+│   ├── ARCHITECTURE.md        ← module-by-module deep dive
+│   ├── COLUMN_LINEAGE.md      ← how column-level extraction works
+│   └── CONTRIBUTING.md        ← dev setup, code style, PR process
+│
+└── .github/
+    ├── workflows/ci.yml       ← ruff + mypy + pytest
+    └── ISSUE_TEMPLATE/        ← bug report, feature request
+```
 
-This repo is connected to [cascade-data on Hugging Face Spaces](https://huggingface.co/spaces/cascade-data). Every push to `main` automatically deploys.
+---
 
-To deploy your own fork:
-
-1. **Fork** this repo
-2. **Create** a new Space at [hf.co/new-space](https://huggingface.co/new-space) → select **Static** SDK
-3. **Link** your forked repo under the Space settings → **Sync Git Repository**
-4. **Push to `main`** — Cascade deploys automatically in ~60 seconds
-
-No CI/CD pipeline needed. HF Spaces handles everything.
-
-### Option B — Self-Hosted / CI/CD
+## 🧪 Running the test suite
 
 ```bash
-# Build the image
-docker build -t cascade-data .
-
-# Run
-docker run -p 8501:8501 cascade-data
-
-# Or with Docker Compose
-docker compose up -d
+pip install -e ".[dev]"
+pytest tests/ -v
 ```
 
-For GitHub Actions, GitLab CI, or other CI/CD pipelines, see [docs/DEPLOY.md](docs/DEPLOY.md).
+You should see:
+
+```
+tests/test_lineage.py::TestDataModels::test_column_node_defaults PASSED
+tests/test_lineage.py::TestDataModels::test_column_node_full PASSED
+... (44 tests)
+============================== 44 passed in 0.6s ===============================
+```
+
+What the tests cover:
+- **Data models** — TableNode, ColumnNode, ColumnLineage, LineageGraph (add/remove, edge cases, defaults)
+- **Manifest parser** — parses a real dbt manifest, extracts nodes, edges, columns
+- **Column lineage** — SQLGlot extracts column-level flows for SELECT, JOIN, CTE, window functions, CASE/WHEN
+- **Blast radius** — full downstream tree, risk scoring, most-connected nodes
+- **Integration** — full pipeline: manifest → graph → column lineage → impact report
 
 ---
+
+## 💡 FAQ
+
+### Why local-only?
+
+A dbt `manifest.json` contains table names, column descriptions, compiled SQL, and database identifiers. That's proprietary metadata. Cascade runs entirely on your machine — no telemetry, no account, no third-party server. Read [SECURITY.md](SECURITY.md) for the full argument.
+
+### Can I deploy it to share with my team?
+
+You can, but I don't recommend it for the same reason above. If you must, **read [SECURITY.md](SECURITY.md) first.** The safest option is having each teammate run their own local instance — `git clone` is one line, `streamlit run` is one line.
+
+### Why not just use dbt docs?
+
+`dbt docs` shows model-level lineage. Cascade shows **column-level** lineage — which is what you need when a single column rename can break 30 downstream models. dbt docs also requires running `dbt docs generate` and serving the output; Cascade reads the same `manifest.json` directly.
+
+### How big a manifest can it handle?
+
+A 200-model / 2000-column project parses in about 1-3 seconds and renders smoothly. The DAG stays performant up to about 500 nodes. For projects beyond that, the auto-fit and zoom levels still work, but the node cards get small.
+
+### Does it work with dbt Cloud?
+
+Yes — `dbt Cloud` produces the same `manifest.json` as `dbt compile` locally. Just download it from your dbt Cloud account and drop it onto the upload area.
+
+### Does it work with `dbt-core` 0.x, 1.x, 2.x?
+
+The parser handles both the legacy `nodes`/`sources` structure and the modern unified `nodes` structure used in dbt 1.0+. If you hit a parsing issue, file an issue with your `manifest.json` schema version.
+
+### Can I extend it with custom analyses?
+
+Yes. The package is just `lineage/` + `ui/`. Write your own Python module that uses `LineageGraph` and `ImpactAnalyzer`, drop it next to the others, and import it from `app.py`.
+
+---
+
+## 📜 License
+
+MIT — see [LICENSE](LICENSE).
 
 ## 🤝 Contributing
 
-Contributions are welcome! See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for setup instructions, coding standards, and the PR process.
+See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md). All contributions welcome — bug reports, features, docs, tests.
 
-Quick start for local dev:
+## 🔒 Security
 
-```bash
-# Clone
-git clone https://github.com/noobigang/cascade-data.git
-cd cascade-data
-
-# Create venv
-python -m venv .venv
-source .venv/bin/activate  # or .venv\Scripts\activate on Windows
-
-# Install deps
-pip install -r requirements.txt
-
-# Run
-streamlit run cascade/app.py
-```
-
----
-
-## 📄 License
-
-MIT License — see [LICENSE](LICENSE) for details.
-
----
-
-## 🔗 Links
-
-- **Live App**: [huggingface.co/spaces/cascade-data](https://huggingface.co/spaces/cascade-data)
-- **GitHub**: [github.com/noobigang/cascade-data](https://github.com/noobigang/cascade-data)
-- **Issues**: [github.com/noobigang/cascade-data/issues](https://github.com/noobigang/cascade-data/issues)
+Read [SECURITY.md](SECURITY.md). Report vulnerabilities via GitHub Security Advisories.

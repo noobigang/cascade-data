@@ -18,10 +18,10 @@ jobs:
           cache: pip
       - run: pip install ruff
       - name: Lint with ruff
-        # List files explicitly via find — bash glob expansion in 'run' steps
-        # is unreliable on Linux runners.
+        # Use find to enumerate all .py files; bash glob expansion in 'run'
+        # steps is unreliable on Linux runners.
         run: |
-          FILES=$(find cascade-rebuild -name "*.py" -not -path "*/__pycache__/*" -not -path "*/build/*" -not -path "*/dist/*")
+          FILES=$(find lineage ui tests -name "*.py" -not -path "*/__pycache__/*")
           ruff check $FILES
 
   typecheck:
@@ -35,13 +35,12 @@ jobs:
           cache: pip
       - run: pip install mypy types-networkx
       - name: mypy
-        # Pass --config-file so mypy picks up the [tool.mypy] section
-        # from cascade-rebuild/pyproject.toml (which loosens checks for
-        # this UI codebase). --explicit-package-bases avoids needing
-        # __init__.py in the tests directory.
+        # --config-file reads [tool.mypy] from pyproject.toml which loosens
+        # checks for this UI codebase. --explicit-package-bases avoids
+        # needing __init__.py in the tests directory.
         run: |
-          FILES=$(find cascade-rebuild/lineage cascade-rebuild/ui -name "*.py" -not -path "*/__pycache__/*")
-          mypy --config-file cascade-rebuild/pyproject.toml $FILES --explicit-package-bases
+          FILES=$(find lineage ui -name "*.py" -not -path "*/__pycache__/*")
+          mypy --config-file pyproject.toml $FILES --explicit-package-bases
 
   test:
     name: pytest
@@ -53,10 +52,10 @@ jobs:
           python-version: "3.11"
           cache: pip
       - name: Install dependencies
-        run: pip install -r cascade-rebuild/requirements.txt
+        run: pip install -r requirements.txt
       - name: Run tests
-        # Pass the test file as an absolute path and set PYTHONPATH so the
-        # test can import the lineage and ui packages. Avoids needing a
-        # tests/__init__.py.
+        # Pass test file as absolute path and add repo to PYTHONPATH so
+        # the test can import the lineage and ui packages without needing
+        # a tests/__init__.py.
         run: |
-          PYTHONPATH=cascade-rebuild pytest cascade-rebuild/tests/test_lineage.py -v --tb=short
+          PYTHONPATH=. pytest tests/test_lineage.py -v --tb=short

@@ -115,16 +115,14 @@ def get_column_impact(
             for (src_table, src_col) in node.column_deps[column_name]:
                 if src_col == column_name and src_table == node_uid:
                     for col_name, col_node in node.columns.items():
-                        if column_name in col_node.source_columns or src_col in col_node.source_columns:
-                            if (ds_uid, col_name) not in affected:
-                                affected.append((ds_uid, col_name))
+                        if (column_name in col_node.source_columns or src_col in col_node.source_columns) and (ds_uid, col_name) not in affected:
+                            affected.append((ds_uid, col_name))
 
         # Also check if the column is in the node's column list
         if column_name in node.columns:
             col = node.columns[column_name]
-            if any(column_name in src for src in col.source_columns):
-                if (ds_uid, column_name) not in affected:
-                    affected.append((ds_uid, column_name))
+            if any(column_name in src for src in col.source_columns) and (ds_uid, column_name) not in affected:
+                affected.append((ds_uid, column_name))
 
     return affected
 

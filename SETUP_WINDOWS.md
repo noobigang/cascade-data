@@ -47,7 +47,7 @@ For example, `C:\Users\YourName\Projects`. In File Explorer, navigate to that fo
 
 ```powershell
 git clone https://github.com/noobigang/cascade-data.git
-cd cascade-data\cascade-rebuild
+cd cascade-data
 ```
 
 ## 5. Create a virtual environment
@@ -101,7 +101,7 @@ Press `Ctrl+C` in the terminal where Streamlit is running.
 You don't need to re-clone or re-install. Just:
 
 ```powershell
-cd path\to\cascade-data\cascade-rebuild
+cd path\to\cascade-data
 .venv\Scripts\activate
 streamlit run app.py
 ```
@@ -149,10 +149,10 @@ pip install -r requirements.txt
 
 ### Tests fail with `ModuleNotFoundError: No module named 'lineage'`
 
-Make sure you're in the `cascade-rebuild/` directory (the one with `app.py`), not the repo root.
+Make sure you're in the `cascade-data/` root directory (the one with `app.py`), not a subdirectory.
 
 ```powershell
-cd cascade-data\cascade-rebuild
+cd cascade-data
 pytest tests/ -v
 ```
 

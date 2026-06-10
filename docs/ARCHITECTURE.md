@@ -11,47 +11,55 @@ manifest.json
       │
       ▼
 ┌─────────────────────────────────────────────────────────┐
-│  manifest_parser.py                                      │
+│  lineage/parser.py                                       │
 │  ──────────────────────────────────────────────────────  │
-│  1. Load JSON                                           │
+│  1. Load JSON                                            │
 │  2. Extract all nodes (models, sources, seeds, tests)   │
-│  3. Extract column metadata (name, dtype, description)   │
+│  3. Extract column metadata (name, dtype, description)  │
 │  4. Extract depends_on lists (refs + sources)            │
-│  5. Emit: List[ManifestNode]                            │
+│  5. Emit: List[TableNode]                               │
 └──────────────────────────────┬──────────────────────────┘
                                │
                                ▼
 ┌─────────────────────────────────────────────────────────┐
-│  lineage_graph.py (NetworkX DiGraph)                    │
+│  lineage/models.py (LineageGraph — NetworkX DiGraph)    │
 │  ──────────────────────────────────────────────────────  │
 │  1. Create directed graph                               │
 │  2. Add one node per model/source/seed                  │
 │  3. Add edges from depends_on relationships            │
-│  4. Attach column metadata as node/edge attributes      │
-│  5. Emit: networkx.DiGraph                             │
+│  4. Attach column metadata as node attributes           │
+│  5. Emit: LineageGraph                                  │
 └──────────────────────────────┬──────────────────────────┘
                                │
                                ▼
 ┌─────────────────────────────────────────────────────────┐
-│  graph_builder.py (PyVis HTML)                          │
+│  lineage/sql_lineage.py (SQLGlot)                        │
 │  ──────────────────────────────────────────────────────  │
-│  1. Convert NetworkX DiGraph → PyVis network            │
-│  2. Style nodes: color by database, size by degree      │
-│  3. Label edges with column names on hover              │
-│  4. Configure physics: force-directed layout            │
-│  5. Emit: HTML string (rendered in Streamlit iframe)   │
+│  1. For each model, parse compiled SQL with SQLGlot     │
+│  2. Walk SELECT/JOIN/CTE expressions                     │
+│  3. Resolve column-level source → destination pairs     │
+│  4. Emit: List[ColumnLineage] attached to model nodes  │
+└──────────────────────────────┬──────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────┐
+│  lineage/impact.py (blast radius + risk scoring)         │
+│  ──────────────────────────────────────────────────────  │
+│  1. NetworkX.descendants() for downstream trees         │
+│  2. Risk score: weighted by # affected models + cols    │
+│  3. Most-connected nodes: degree centrality             │
+│  4. Emit: ImpactReport (used by blast-radius UI)        │
 └──────────────────────────────┬──────────────────────────┘
                                │
                                ▼
 ┌─────────────────────────────────────────────────────────┐
 │  app.py (Streamlit)                                      │
 │  ──────────────────────────────────────────────────────  │
-│  1. Upload zone → manifest_parser                       │
-│  2. Build graph → display PyVis DAG                    │
-│  3. Search panel → impact_analyzer (blast radius)       │
-│  4. Detail panel → show node columns + up/downstream   │
-│  5. Share card → state_encoder (URL encode/decode)     │
-│  6. Export → graph_exporter (JSON / Markdown / PNG)     │
+│  1. Upload zone → lineage/parser.py                     │
+│  2. ui/dag_viewer.py — render D3.js DAG                 │
+│  3. ui/detail_panel.py — show node columns + lineage    │
+│  4. ui/scroll_bridge.py — DAG click → state             │
+│  5. Blast-radius panel — render ImpactReport            │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -60,34 +68,31 @@ manifest.json
 ## Module Reference
 
 ```
-cascade/
-├── app.py
-│   ├── Streamlit entrypoint
-│   ├── Session state management
-│   └── Routes to sub-modules
+cascade-data/
+├── app.py                    # Streamlit entrypoint
 │
-├── parser/
+├── lineage/
 │   ├── __init__.py
-│   ├── manifest_parser.py       # Parse manifest.json → structured nodes
-│   ├── column_resolver.py        # Resolve column-level depends_on
-│   └── test_extractor.py        # Extract dbt tests as node attributes
-│
-├── graph/
-│   ├── __init__.py
-│   ├── lineage_graph.py         # Build NetworkX DiGraph from nodes
-│   ├── impact_analyzer.py       # Blast radius + upstream/downstream queries
-│   └── graph_exporter.py        # Export to PyVis HTML / JSON / Markdown
+│   ├── models.py             # TableNode, ColumnNode, ColumnLineage, LineageGraph
+│   ├── parser.py             # manifest.json → LineageGraph
+│   ├── sql_lineage.py        # SQLGlot column-level extraction
+│   └── impact.py             # blast radius, risk scoring, connectivity
 │
 ├── ui/
 │   ├── __init__.py
-│   ├── dag_viewer.py            # PyVis iframe + Streamlit integration
-│   ├── search_panel.py          # Impact search input + results display
-│   ├── detail_panel.py          # Model/column detail slide-up panel
-│   └── upload_zone.py           # Drag-and-drop manifest upload UI
+│   ├── dag_viewer.py         # D3.js dagre-layout DAG (embedded HTML)
+│   ├── detail_panel.py       # node detail + column lineage table
+│   ├── sidebar.py            # upload, filters, resource list
+│   ├── hero.py               # dark theme CSS
+│   ├── upload_zone.py        # drag-and-drop manifest uploader
+│   └── scroll_bridge.py      # DAG click → Streamlit state bridge
 │
-└── utils/
-    ├── __init__.py
-    └── state_encoder.py         # URL-safe state encode/decode for share cards
+├── tests/
+│   └── test_lineage.py        # 44 tests
+│
+└── demo/
+    ├── manifest.json
+    └── build_manifest.py
 ```
 
 ---
@@ -104,36 +109,44 @@ NetworkX is the right tool for this workload:
 
 For extremely large graphs (100k+ nodes), consider swapping to `igraph` or `graph-tool`, but for the target user (single dbt project), NetworkX is sufficient.
 
-### Why PyVis over D3.js?
+### Why D3.js + dagre over PyVis / vis.js?
 
-PyVis wraps vis.js, which is:
-- **Python-first** — no JavaScript build step required
-- **Sufficient interactivity** — hover, click, zoom, pan
-- **Easy to embed** — `st.components.v1.html()` in Streamlit
+D3.js with the `dagre` layout gives us:
+- **Static, predictable layout** — no physics simulation flinging nodes around
+- **Better visual control** — we can render exactly the cards, badges, and labels we want
+- **Smaller payload** — no vis.js runtime, no physics engine
+- **More professional look** — the kind of diagram you'd see in a dbt / Looker / Fivetran doc
 
-D3.js would allow finer visual control, but would require a separate frontend build pipeline (Vite/Webpack + TypeScript). That complexity is not worth it for a data-tool UI used by engineers who care about the graph, not the chrome.
+The trade-off is more JavaScript to maintain. The `ui/dag_viewer.py` file is one self-contained HTML+JS+CSS block; no build step.
+
+### Why SQLGlot?
+
+SQLGlot is the best-in-class Python SQL parser:
+- **Dialect-aware** — handles BigQuery, Snowflake, Postgres, Spark, DuckDB, etc.
+- **AST-based** — exposes columns, joins, CTEs, subqueries as a traversable tree
+- **Pure Python** — no external compiler, no Java dependency
+- **Used in production by major projects** (Dagster, dlt, sqlmesh)
 
 ### Why Stateless (No Database)?
 
 Cascade is designed for one-shot exploration:
-- Upload manifest → explore → share or export → done
+- Upload manifest → explore → export or share → done
 - No user accounts, no persistence, no security surface
-- State lives in URL params (base64-encoded) or local JSON files
+- State lives in URL params or in the running process
 
-This makes it trivially deployable on Hugging Face Spaces with zero infrastructure.
+This makes it trivially runnable on localhost. Each user has their own instance. No shared infrastructure.
 
 ---
 
 ## State Management
 
 Streamlit session state holds:
-- `manifest_data` — raw dict from uploaded JSON
-- `nodes` — list of parsed `ManifestNode` objects
-- `graph` — the `networkx.DiGraph`
-- `selected_node` — currently clicked model name
-- `share_state` — base64-encoded URL params for share cards
+- `graph` — the `LineageGraph`
+- `selected_node_uid` — currently clicked node
+- `_bridge_last_at` — last seen timestamp from the DAG click bridge
+- `dag_graph_data` — cached DAG payload (avoid re-computing)
 
-State is **not persisted** across page refreshes. To share a view, use the Share Card feature which encodes the full state into the URL.
+State is **not persisted** across page refreshes. To share a view, the user exports a screenshot or the underlying JSON.
 
 ---
 
@@ -141,7 +154,9 @@ State is **not persisted** across page refreshes. To share a view, use the Share
 
 | Operation | Target |
 |---|---|
-| Parse 10k+ node manifest | < 5 seconds |
-| DAG render (500+ nodes) | Smooth 60fps pan/zoom |
-| Blast radius query | < 1 second |
-| Two-manifest diff | < 10 seconds |
+| Parse 200-node manifest | < 1 second |
+| Parse 1000-node manifest | < 5 seconds |
+| Column-lineage extraction | < 1 second per 100 models |
+| DAG render (200 nodes) | Smooth 60fps pan/zoom |
+| Blast-radius query | < 100ms |
+| Filter toggle | < 200ms |

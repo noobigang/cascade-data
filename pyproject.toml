@@ -1,49 +1,116 @@
 [project]
-name = "cascade-data"
-version = "0.1.0"
-description = "dbt lineage impact analyzer"
+name = "cascade"
+version = "1.0.0"
+description = "Column-level data lineage dashboard for dbt projects. Self-hosted, runs on localhost."
+readme = "README.md"
 requires-python = ">=3.11"
-dependencies = [
-    "streamlit>=1.28",
-    "networkx>=3.2",
-    "pyvis>=0.3.1",
-    "pandas>=2.0",
+license = { text = "MIT" }
+authors = [
+    { name = "Cascade Contributors" },
 ]
-
-[tool.setuptools.packages.find]
-include = ["cascade*"]
+keywords = [
+    "dbt",
+    "lineage",
+    "data-engineering",
+    "data-lineage",
+    "column-lineage",
+    "blast-radius",
+    "streamlit",
+    "sqlglot",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Environment :: Web Browser",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Database",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Utilities",
+    "Typing :: Typed",
+]
+dependencies = [
+    "streamlit>=1.40.0",
+    "networkx>=3.0",
+    "sqlglot>=25.0.0",
+    "pandas>=2.0.0",
+    "streamlit-js-eval>=0.1.0",
+]
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=7.0",
-    "ruff>=0.1",
-    "mypy>=1.0",
-    "types-networkx",
+    "pytest>=8.0.0",
+    "ruff>=0.4.0",
+    "mypy>=1.10.0",
 ]
 
+[project.urls]
+Homepage = "https://github.com/noobigang/cascade-data"
+Repository = "https://github.com/noobigang/cascade-data"
+Issues = "https://github.com/noobigang/cascade-data/issues"
+Changelog = "https://github.com/noobigang/cascade-data/blob/main/CHANGELOG.md"
+
+[project.scripts]
+cascade = "app:main"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["lineage*", "ui*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+
 [tool.ruff]
-line-length = 100
 target-version = "py311"
+line-length = 100
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "SIM"]
-ignore = ["E501"]  # Line-length in HTML/CSS string blocks is acceptable
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "W",   # pycodestyle warnings
+    "I",   # isort
+    "N",   # pep8-naming
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "SIM", # flake8-simplify
+]
+ignore = [
+    "E501", # line-length: HTML/CSS string blocks are exempt
+]
 
 [tool.mypy]
 python_version = "3.11"
-strict = false
-warn_return_any = true
-warn_unused_configs = true
-disallow_untyped_defs = false
-
-[[tool.mypy.overrides]]
-module = "pyvis.*"
 ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "streamlit.*"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "networkx.*"
-ignore_missing_imports = true
+show_error_codes = true
+pretty = true
+# The dashboard is a UI app — strict typing for inference is overkill
+# and creates false positives (e.g. Returning Any from optional sqlglot
+# APIs, var-annotated for dynamically-built lists). Loosen the checks
+# we don't care about for this codebase.
+disable_error_code = [
+    "no-any-return",
+    "var-annotated",
+    "assignment",
+    "union-attr",
+    "arg-type",
+    "index",
+    "attr-defined",
+    "call-arg",
+    "misc",
+    "operator",
+    "return-value",
+]

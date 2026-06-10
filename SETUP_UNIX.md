@@ -82,7 +82,7 @@ cd ~/Projects    # or wherever you keep code
 
 ```bash
 git clone https://github.com/noobigang/cascade-data.git
-cd cascade-data/cascade-rebuild
+cd cascade-data
 ```
 
 ## 5. Create a virtual environment
@@ -136,7 +136,7 @@ Press `Ctrl+C` in the terminal where Streamlit is running.
 You don't need to re-clone or re-install. Just:
 
 ```bash
-cd ~/path/to/cascade-data/cascade-rebuild
+cd ~/path/to/cascade-data
 source .venv/bin/activate
 streamlit run app.py
 ```
@@ -185,10 +185,10 @@ pip install -r requirements.txt
 
 ### Tests fail with `ModuleNotFoundError: No module named 'lineage'`
 
-Make sure you're in the `cascade-rebuild/` directory (the one with `app.py`), not the repo root.
+Make sure you're in the `cascade-data/` root directory (the one with `app.py`), not a subdirectory.
 
 ```bash
-cd cascade-data/cascade-rebuild
+cd cascade-data
 pytest tests/ -v
 ```
 

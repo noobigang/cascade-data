@@ -5,7 +5,6 @@ test_impact_analyzer.py — Tests for impact_analyzer.py.
 import warnings
 
 import pytest
-
 from cascade.graph.impact_analyzer import (
     blast_radius_score,
     get_column_lineage,

@@ -112,8 +112,7 @@ class ColumnExtractor:
         """Recursively walk the AST."""
         if isinstance(node, exp.Select):
             self._walk_select(node)
-        elif isinstance(node, (exp.Union, exp.Except, exp.Intersect)):
-            if node.this:
+        elif isinstance(node, (exp.Union, exp.Except, exp.Intersect)) and node.this:
                 self._walk(node.this)
 
     def _walk_select(self, select: exp.Select) -> None:
@@ -190,9 +189,8 @@ class ColumnExtractor:
 
         # Try segments of the unique_id
         for name_key, uid in self._name_to_uid.items():
-            if name_key == clean or clean in uid:
-                if uid in self.source_tables:
-                    return uid
+            if (name_key == clean or clean in uid) and uid in self.source_tables:
+                return uid
 
         return None
 
@@ -247,9 +245,8 @@ class ColumnExtractor:
                     continue
 
             # If the column is a function argument, still try to trace it
-            if isinstance(col.parent, exp.Func):
-                if col_name in source_refs:
-                    results.append(source_refs[col_name])
+            if isinstance(col.parent, exp.Func) and col_name in source_refs:
+                results.append(source_refs[col_name])
 
         return results
 

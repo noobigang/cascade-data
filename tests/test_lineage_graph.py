@@ -4,7 +4,6 @@ test_lineage_graph.py — Tests for lineage_graph.py.
 
 
 import pytest
-
 from cascade.graph.lineage_graph import (
     add_column_edges,
     build_lineage_graph,

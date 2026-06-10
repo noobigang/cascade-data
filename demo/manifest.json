@@ -1,322 +1,1150 @@
 {
   "metadata": {
-    "dbt_schema_version": "https://schemas.getdbt.com/dbt/manifest/v11.json",
-    "dbt_version": "1.7.0",
-    "project_name": "ecommerce_analytics",
-    "generated_at": "2024-03-15T10:30:00Z"
+    "dbt_schema_version": "https://schemas.getdbt.com/dbt/manifest/v5.json",
+    "dbt_version": "1.5.0",
+    "generated_at": "2024-01-15T10:30:00Z",
+    "project_name": "ecommerce_analytics"
   },
   "nodes": {
-    "source.ecommerce.raw_orders": {
-      "unique_id": "source.ecommerce.raw_orders",
-      "name": "raw_orders",
-      "resource_type": "source",
-      "schema": "ecommerce",
-      "description": "Raw orders table from Shopify API — contains all order records including cancelled and pending.",
-      "columns": {
-        "order_id": {"dtype": "varchar", "description": "Primary key — unique Shopify order ID"},
-        "customer_id": {"dtype": "varchar", "description": "Shopify customer ID"},
-        "order_date": {"dtype": "timestamp", "description": "When the order was placed"},
-        "status": {"dtype": "varchar", "description": "Order status: pending, fulfilled, cancelled, refunded"},
-        "total_amount": {"dtype": "decimal(10,2)", "description": "Total order amount in USD"},
-        "currency": {"dtype": "varchar", "description": "Currency code (USD, EUR, etc.)"},
-        "channel": {"dtype": "varchar", "description": "Sales channel: web, mobile, in_store"}
-      },
-      "depends_on": {"nodes": []}
-    },
-    "source.ecommerce.raw_customers": {
-      "unique_id": "source.ecommerce.raw_customers",
-      "name": "raw_customers",
-      "resource_type": "source",
-      "schema": "ecommerce",
-      "description": "Raw customer profiles from Shopify. Updated on each login or profile change.",
-      "columns": {
-        "customer_id": {"dtype": "varchar", "description": "Primary key — unique customer ID"},
-        "email": {"dtype": "varchar", "description": "Customer email address"},
-        "first_name": {"dtype": "varchar", "description": "Customer first name"},
-        "last_name": {"dtype": "varchar", "description": "Customer last name"},
-        "created_at": {"dtype": "timestamp", "description": "Account creation timestamp"},
-        "country": {"dtype": "varchar", "description": "ISO 3166-1 alpha-2 country code"},
-        "total_orders": {"dtype": "int", "description": "Lifetime order count"},
-        "total_spent": {"dtype": "decimal(12,2)", "description": "Lifetime spend in USD"}
-      },
-      "depends_on": {"nodes": []}
-    },
-    "source.ecommerce.raw_products": {
-      "unique_id": "source.ecommerce.raw_products",
-      "name": "raw_products",
-      "resource_type": "source",
-      "schema": "ecommerce",
-      "description": "Product catalog from Shopify. Includes variants and inventory levels.",
-      "columns": {
-        "product_id": {"dtype": "varchar", "description": "Primary key — Shopify product ID"},
-        "sku": {"dtype": "varchar", "description": "Stock Keeping Unit"},
-        "product_name": {"dtype": "varchar", "description": "Display name of the product"},
-        "category": {"dtype": "varchar", "description": "Product category"},
-        "price": {"dtype": "decimal(10,2)", "description": "Unit price in USD"},
-        "cost": {"dtype": "decimal(10,2)", "description": "Unit cost in USD"},
-        "inventory_qty": {"dtype": "int", "description": "Current inventory count"},
-        "created_at": {"dtype": "timestamp", "description": "Product creation date"}
-      },
-      "depends_on": {"nodes": []}
-    },
-    "source.ecommerce.raw_marketing": {
-      "unique_id": "source.ecommerce.raw_marketing",
-      "name": "raw_marketing",
-      "resource_type": "source",
-      "schema": "ecommerce",
-      "description": "Marketing spend and attribution data from Google Ads and Meta Ads.",
-      "columns": {
-        "campaign_id": {"dtype": "varchar", "description": "Campaign identifier"},
-        "channel": {"dtype": "varchar", "description": "Marketing channel: google, meta, email, organic"},
-        "impressions": {"dtype": "int", "description": "Total ad impressions"},
-        "clicks": {"dtype": "int", "description": "Total ad clicks"},
-        "spend": {"dtype": "decimal(12,2)", "description": "Total spend in USD"},
-        "conversions": {"dtype": "int", "description": "Attributed conversions"},
-        "revenue": {"dtype": "decimal(12,2)", "description": "Attributed revenue in USD"},
-        "date": {"dtype": "date", "description": "Campaign run date"}
-      },
-      "depends_on": {"nodes": []}
-    },
-    "seed.ecommerce.dim_date": {
-      "unique_id": "seed.ecommerce.dim_date",
-      "name": "dim_date",
-      "resource_type": "seed",
-      "schema": "ecommerce",
-      "description": "Date dimension table with fiscal calendar attributes. Seeds for date key lookups across all mart models.",
-      "columns": {
-        "date_key": {"dtype": "int", "description": "Surrogate key in YYYYMMDD format"},
-        "date": {"dtype": "date", "description": "Calendar date"},
-        "day_of_week": {"dtype": "int", "description": "1=Monday through 7=Sunday"},
-        "week_of_year": {"dtype": "int", "description": "ISO week number"},
-        "month": {"dtype": "int", "description": "Month number 1-12"},
-        "quarter": {"dtype": "int", "description": "Fiscal quarter 1-4"},
-        "year": {"dtype": "int", "description": "Year"},
-        "is_weekend": {"dtype": "boolean", "description": "True if Saturday or Sunday"},
-        "fiscal_period": {"dtype": "varchar", "description": "Fiscal period label e.g. FY2024-P03"}
-      },
-      "depends_on": {"nodes": []}
-    },
-    "seed.ecommerce.dim_channel": {
-      "unique_id": "seed.ecommerce.dim_channel",
-      "name": "dim_channel",
-      "resource_type": "seed",
-      "schema": "ecommerce",
-      "description": "Channel dimension with cost allocation and attribution model settings.",
-      "columns": {
-        "channel_key": {"dtype": "varchar", "description": "Channel identifier"},
-        "channel_name": {"dtype": "varchar", "description": "Human-readable channel name"},
-        "channel_group": {"dtype": "varchar", "description": "Channel group: paid, owned, earned"},
-        "attribution_model": {"dtype": "varchar", "description": "Attribution model: first-touch, last-touch, linear"},
-        "is_active": {"dtype": "boolean", "description": "Whether channel is currently active"}
-      },
-      "depends_on": {"nodes": []}
-    },
     "model.ecommerce.stg_orders": {
-      "unique_id": "model.ecommerce.stg_orders",
       "name": "stg_orders",
       "resource_type": "model",
-      "schema": "ecommerce_staging",
-      "description": "Staging layer for orders — filters to completed orders only, normalizes timestamps to UTC.",
+      "unique_id": "model.ecommerce.stg_orders",
+      "description": "Staging layer for orders with basic cleaning",
+      "relation_name": "\"analytics\".\"stg_orders\"",
       "columns": {
-        "order_id": {"dtype": "varchar", "description": "Primary key"},
-        "customer_id": {"dtype": "varchar", "description": "Foreign key to customers"},
-        "order_date": {"dtype": "timestamp", "description": "UTC-normalized order timestamp"},
-        "status": {"dtype": "varchar", "description": "Order status"},
-        "total_amount_usd": {"dtype": "decimal(10,2)", "description": "Amount normalized to USD"},
-        "channel": {"dtype": "varchar", "description": "Sales channel"}
+        "order_id": {
+          "data_type": "VARCHAR",
+          "description": "Primary key"
+        },
+        "customer_id": {
+          "data_type": "INTEGER",
+          "description": "Customer FK"
+        },
+        "order_date": {
+          "data_type": "TIMESTAMP",
+          "description": "When order was placed"
+        },
+        "order_status": {
+          "data_type": "VARCHAR",
+          "description": "Order status"
+        },
+        "net_amount": {
+          "data_type": "DECIMAL",
+          "description": "total_amount minus discount"
+        },
+        "shipping_cost": {
+          "data_type": "DECIMAL",
+          "description": "Shipping charge"
+        },
+        "payment_method": {
+          "data_type": "VARCHAR",
+          "description": "Payment method"
+        }
       },
-      "depends_on": {"nodes": ["source.ecommerce.raw_orders"]}
+      "depends_on": {
+        "nodes": [
+          "source.ecommerce.raw_orders"
+        ]
+      },
+      "raw_sql": "SELECT order_id, customer_id, order_date, status AS order_status, total_amount - COALESCE(discount_amount, 0) AS net_amount, shipping_cost, payment_method FROM source.ecommerce.raw_orders",
+      "compiled_sql": "SELECT order_id, customer_id, order_date, status AS order_status, total_amount - COALESCE(discount_amount, 0) AS net_amount, shipping_cost, payment_method FROM \"ecommerce\".\"raw_orders\""
     },
     "model.ecommerce.stg_customers": {
-      "unique_id": "model.ecommerce.stg_customers",
       "name": "stg_customers",
       "resource_type": "model",
-      "schema": "ecommerce_staging",
-      "description": "Staging layer for customers — deduplicates by customer_id, selects latest record per customer.",
+      "unique_id": "model.ecommerce.stg_customers",
+      "description": "Staging layer for customers with name formatting",
+      "relation_name": "\"analytics\".\"stg_customers\"",
       "columns": {
-        "customer_id": {"dtype": "varchar", "description": "Primary key"},
-        "email": {"dtype": "varchar", "description": "Email (hashed for privacy)"},
-        "full_name": {"dtype": "varchar", "description": "Concatenated first + last name"},
-        "country": {"dtype": "varchar", "description": "Country code"},
-        "tenure_days": {"dtype": "int", "description": "Days since account creation"},
-        "lifetime_value": {"dtype": "decimal(12,2)", "description": "Lifetime spend in USD"}
+        "customer_id": {
+          "data_type": "INTEGER",
+          "description": "Primary key"
+        },
+        "email": {
+          "data_type": "VARCHAR",
+          "description": "Email (lowercased)"
+        },
+        "full_name": {
+          "data_type": "VARCHAR",
+          "description": "first_name + last_name"
+        },
+        "phone": {
+          "data_type": "VARCHAR",
+          "description": "Phone number"
+        },
+        "country": {
+          "data_type": "VARCHAR",
+          "description": "Country code"
+        },
+        "city": {
+          "data_type": "VARCHAR",
+          "description": "City"
+        },
+        "customer_segment": {
+          "data_type": "VARCHAR",
+          "description": "Segment"
+        },
+        "lifetime_value": {
+          "data_type": "DECIMAL",
+          "description": "LTV"
+        },
+        "created_at": {
+          "data_type": "TIMESTAMP",
+          "description": "Account creation"
+        }
       },
-      "depends_on": {"nodes": ["source.ecommerce.raw_customers"]}
+      "depends_on": {
+        "nodes": [
+          "source.ecommerce.raw_customers"
+        ]
+      },
+      "raw_sql": "SELECT customer_id, LOWER(email) AS email, first_name || ' ' || last_name AS full_name, phone, country, city, customer_segment, lifetime_value, created_at FROM source.ecommerce.raw_customers",
+      "compiled_sql": "SELECT customer_id, LOWER(email) AS email, first_name || ' ' || last_name AS full_name, phone, country, city, customer_segment, lifetime_value, created_at FROM \"ecommerce\".\"raw_customers\""
     },
     "model.ecommerce.stg_products": {
-      "unique_id": "model.ecommerce.stg_products",
       "name": "stg_products",
       "resource_type": "model",
-      "schema": "ecommerce_staging",
-      "description": "Staging layer for products — computes margin and normalizes category names.",
+      "unique_id": "model.ecommerce.stg_products",
+      "description": "Staging layer for products with margin calculation",
+      "relation_name": "\"analytics\".\"stg_products\"",
       "columns": {
-        "product_id": {"dtype": "varchar", "description": "Primary key"},
-        "sku": {"dtype": "varchar", "description": "SKU"},
-        "product_name": {"dtype": "varchar", "description": "Product display name"},
-        "category": {"dtype": "varchar", "description": "Normalized category"},
-        "price_usd": {"dtype": "decimal(10,2)", "description": "Price in USD"},
-        "cost_usd": {"dtype": "decimal(10,2)", "description": "Cost in USD"},
-        "margin_pct": {"dtype": "decimal(5,2)", "description": "Gross margin percentage"}
+        "product_id": {
+          "data_type": "INTEGER",
+          "description": "Primary key"
+        },
+        "sku": {
+          "data_type": "VARCHAR",
+          "description": "SKU"
+        },
+        "product_name": {
+          "data_type": "VARCHAR",
+          "description": "Product name"
+        },
+        "category": {
+          "data_type": "VARCHAR",
+          "description": "Category"
+        },
+        "subcategory": {
+          "data_type": "VARCHAR",
+          "description": "Subcategory"
+        },
+        "brand": {
+          "data_type": "VARCHAR",
+          "description": "Brand"
+        },
+        "unit_price": {
+          "data_type": "DECIMAL",
+          "description": "List price"
+        },
+        "cost": {
+          "data_type": "DECIMAL",
+          "description": "COGS"
+        },
+        "margin_pct": {
+          "data_type": "DECIMAL",
+          "description": "Gross margin %"
+        },
+        "is_active": {
+          "data_type": "BOOLEAN",
+          "description": "Is active"
+        }
       },
-      "depends_on": {"nodes": ["source.ecommerce.raw_products"]}
+      "depends_on": {
+        "nodes": [
+          "source.ecommerce.raw_products"
+        ]
+      },
+      "raw_sql": "SELECT product_id, sku, product_name, category, subcategory, brand, unit_price, cost, ROUND((unit_price - cost) / unit_price * 100, 2) AS margin_pct, is_active FROM source.ecommerce.raw_products",
+      "compiled_sql": "SELECT product_id, sku, product_name, category, subcategory, brand, unit_price, cost, ROUND((unit_price - cost) / unit_price * 100, 2) AS margin_pct, is_active FROM \"ecommerce\".\"raw_products\""
     },
-    "model.ecommerce.stg_marketing_events": {
-      "unique_id": "model.ecommerce.stg_marketing_events",
-      "name": "stg_marketing_events",
+    "model.ecommerce.stg_marketing": {
+      "name": "stg_marketing",
       "resource_type": "model",
-      "schema": "ecommerce_staging",
-      "description": "Staging layer for marketing spend — aggregates daily metrics and joins to dim_channel for group info.",
+      "unique_id": "model.ecommerce.stg_marketing",
+      "description": "Staging layer for marketing campaigns",
+      "relation_name": "\"analytics\".\"stg_marketing\"",
       "columns": {
-        "date": {"dtype": "date", "description": "Campaign date"},
-        "channel": {"dtype": "varchar", "description": "Marketing channel"},
-        "channel_group": {"dtype": "varchar", "description": "Paid/Owned/Earned group"},
-        "impressions": {"dtype": "int", "description": "Total impressions"},
-        "clicks": {"dtype": "int", "description": "Total clicks"},
-        "spend_usd": {"dtype": "decimal(12,2)", "description": "Spend in USD"},
-        "conversions": {"dtype": "int", "description": "Attributed conversions"},
-        "revenue_usd": {"dtype": "decimal(12,2)", "description": "Attributed revenue"}
+        "campaign_id": {
+          "data_type": "INTEGER",
+          "description": "Primary key"
+        },
+        "campaign_name": {
+          "data_type": "VARCHAR",
+          "description": "Campaign name"
+        },
+        "channel": {
+          "data_type": "VARCHAR",
+          "description": "Marketing channel"
+        },
+        "start_date": {
+          "data_type": "DATE",
+          "description": "Campaign start"
+        },
+        "end_date": {
+          "data_type": "DATE",
+          "description": "Campaign end"
+        },
+        "budget": {
+          "data_type": "DECIMAL",
+          "description": "Budget"
+        },
+        "spend": {
+          "data_type": "DECIMAL",
+          "description": "Actual spend"
+        },
+        "roas": {
+          "data_type": "DECIMAL",
+          "description": "Return on ad spend"
+        },
+        "ctr": {
+          "data_type": "DECIMAL",
+          "description": "Click-through rate"
+        }
       },
-      "depends_on": {"nodes": ["source.ecommerce.raw_marketing", "seed.ecommerce.dim_channel"]}
+      "depends_on": {
+        "nodes": [
+          "source.ecommerce.raw_marketing"
+        ]
+      },
+      "raw_sql": "SELECT campaign_id, campaign_name, channel, start_date, end_date, budget, spend, CASE WHEN spend > 0 THEN ROUND(conversions * 50 / spend, 2) ELSE 0 END AS roas, CASE WHEN impressions > 0 THEN ROUND(clicks * 100.0 / impressions, 2) ELSE 0 END AS ctr FROM source.ecommerce.raw_marketing",
+      "compiled_sql": "SELECT campaign_id, campaign_name, channel, start_date, end_date, budget, spend, CASE WHEN spend > 0 THEN ROUND(conversions * 50 / spend, 2) ELSE 0 END AS roas, CASE WHEN impressions > 0 THEN ROUND(clicks * 100.0 / impressions, 2) ELSE 0 END AS ctr FROM \"ecommerce\".\"raw_marketing\""
+    },
+    "model.ecommerce.stg_inventory": {
+      "name": "stg_inventory",
+      "resource_type": "model",
+      "unique_id": "model.ecommerce.stg_inventory",
+      "description": "Staging layer for inventory with stock status",
+      "relation_name": "\"analytics\".\"stg_inventory\"",
+      "columns": {
+        "inventory_id": {
+          "data_type": "INTEGER",
+          "description": "Primary key"
+        },
+        "product_id": {
+          "data_type": "INTEGER",
+          "description": "Product FK"
+        },
+        "warehouse_id": {
+          "data_type": "INTEGER",
+          "description": "Warehouse FK"
+        },
+        "quantity_on_hand": {
+          "data_type": "INTEGER",
+          "description": "On hand"
+        },
+        "quantity_available": {
+          "data_type": "INTEGER",
+          "description": "Available"
+        },
+        "reorder_point": {
+          "data_type": "INTEGER",
+          "description": "Reorder threshold"
+        },
+        "stock_status": {
+          "data_type": "VARCHAR",
+          "description": "in_stock/low_stock/out_of_stock"
+        },
+        "last_restocked": {
+          "data_type": "DATE",
+          "description": "Last restock"
+        }
+      },
+      "depends_on": {
+        "nodes": [
+          "source.ecommerce.raw_inventory"
+        ]
+      },
+      "raw_sql": "SELECT inventory_id, product_id, warehouse_id, quantity_on_hand, quantity_available, reorder_point, CASE WHEN quantity_available <= 0 THEN 'out_of_stock' WHEN quantity_available <= reorder_point THEN 'low_stock' ELSE 'in_stock' END AS stock_status, last_restocked FROM source.ecommerce.raw_inventory",
+      "compiled_sql": "SELECT inventory_id, product_id, warehouse_id, quantity_on_hand, quantity_available, reorder_point, CASE WHEN quantity_available <= 0 THEN 'out_of_stock' WHEN quantity_available <= reorder_point THEN 'low_stock' ELSE 'in_stock' END AS stock_status, last_restocked FROM \"ecommerce\".\"raw_inventory\""
     },
     "model.ecommerce.int_order_items": {
-      "unique_id": "model.ecommerce.int_order_items",
       "name": "int_order_items",
       "resource_type": "model",
-      "schema": "ecommerce_intermediate",
-      "description": "Intermediate layer — joins orders to products to compute line-level revenue, cost, and margin.",
+      "unique_id": "model.ecommerce.int_order_items",
+      "description": "Intermediate order items layer",
+      "relation_name": "\"analytics\".\"int_order_items\"",
       "columns": {
-        "order_id": {"dtype": "varchar", "description": "Foreign key to orders"},
-        "product_id": {"dtype": "varchar", "description": "Foreign key to products"},
-        "order_date": {"dtype": "timestamp", "description": "Order date"},
-        "channel": {"dtype": "varchar", "description": "Sales channel"},
-        "revenue": {"dtype": "decimal(10,2)", "description": "Line revenue in USD"},
-        "cost": {"dtype": "decimal(10,2)", "description": "Line cost in USD"},
-        "gross_margin": {"dtype": "decimal(10,2)", "description": "Line gross margin"}
+        "order_id": {
+          "data_type": "VARCHAR",
+          "description": "Order FK"
+        },
+        "customer_id": {
+          "data_type": "INTEGER",
+          "description": "Customer FK"
+        },
+        "order_date": {
+          "data_type": "TIMESTAMP",
+          "description": "Order date"
+        },
+        "order_status": {
+          "data_type": "VARCHAR",
+          "description": "Status"
+        },
+        "net_amount": {
+          "data_type": "DECIMAL",
+          "description": "Net amount"
+        }
       },
-      "depends_on": {"nodes": ["model.ecommerce.stg_orders", "model.ecommerce.stg_customers", "model.ecommerce.stg_products"]}
+      "depends_on": {
+        "nodes": [
+          "model.ecommerce.stg_orders"
+        ]
+      },
+      "raw_sql": "SELECT order_id, customer_id, order_date, order_status, net_amount FROM model.ecommerce.stg_orders",
+      "compiled_sql": "SELECT order_id, customer_id, order_date, order_status, net_amount FROM \"analytics\".\"stg_orders\""
     },
-    "model.ecommerce.int_customer_signups": {
-      "unique_id": "model.ecommerce.int_customer_signups",
-      "name": "int_customer_signups",
+    "model.ecommerce.int_order_enrichment": {
+      "name": "int_order_enrichment",
       "resource_type": "model",
-      "schema": "ecommerce_intermediate",
-      "description": "Intermediate layer — aggregates customer signup trends by date and country for retention analysis.",
+      "unique_id": "model.ecommerce.int_order_enrichment",
+      "description": "Orders enriched with customer info",
+      "relation_name": "\"analytics\".\"int_order_enrichment\"",
       "columns": {
-        "signup_date": {"dtype": "date", "description": "Date of account creation"},
-        "country": {"dtype": "varchar", "description": "Country code"},
-        "new_customers": {"dtype": "int", "description": "Count of new signups"},
-        "total_ltv": {"dtype": "decimal(14,2)", "description": "Sum of lifetime value for cohort"}
+        "order_id": {
+          "data_type": "VARCHAR",
+          "description": "Order ID"
+        },
+        "customer_id": {
+          "data_type": "INTEGER",
+          "description": "Customer ID"
+        },
+        "customer_name": {
+          "data_type": "VARCHAR",
+          "description": "Customer full name"
+        },
+        "customer_segment": {
+          "data_type": "VARCHAR",
+          "description": "Segment"
+        },
+        "country": {
+          "data_type": "VARCHAR",
+          "description": "Country"
+        },
+        "order_date": {
+          "data_type": "TIMESTAMP",
+          "description": "Order date"
+        },
+        "order_status": {
+          "data_type": "VARCHAR",
+          "description": "Status"
+        },
+        "net_amount": {
+          "data_type": "DECIMAL",
+          "description": "Net amount"
+        },
+        "payment_method": {
+          "data_type": "VARCHAR",
+          "description": "Payment method"
+        },
+        "is_new_customer": {
+          "data_type": "BOOLEAN",
+          "description": "First order flag"
+        }
       },
-      "depends_on": {"nodes": ["model.ecommerce.stg_customers"]}
+      "depends_on": {
+        "nodes": [
+          "model.ecommerce.int_order_items",
+          "model.ecommerce.stg_customers"
+        ]
+      },
+      "raw_sql": "SELECT o.order_id, o.customer_id, c.full_name AS customer_name, c.customer_segment, c.country, o.order_date, o.order_status, o.net_amount, o.payment_method, CASE WHEN o.order_date = c.created_at THEN TRUE ELSE FALSE END AS is_new_customer FROM model.ecommerce.int_order_items o LEFT JOIN model.ecommerce.stg_customers c ON o.customer_id = c.customer_id",
+      "compiled_sql": "SELECT o.order_id, o.customer_id, c.full_name AS customer_name, c.customer_segment, c.country, o.order_date, o.order_status, o.net_amount, o.payment_method, CASE WHEN o.order_date = c.created_at THEN TRUE ELSE FALSE END AS is_new_customer FROM \"analytics\".\"int_order_items\" o LEFT JOIN \"analytics\".\"stg_customers\" c ON o.customer_id = c.customer_id"
     },
-    "model.ecommerce.int_daily_sales": {
-      "unique_id": "model.ecommerce.int_daily_sales",
-      "name": "int_daily_sales",
+    "model.ecommerce.int_customer_orders": {
+      "name": "int_customer_orders",
       "resource_type": "model",
-      "schema": "ecommerce_intermediate",
-      "description": "Intermediate layer — daily sales rollup with date key for joining to dim_date.",
+      "unique_id": "model.ecommerce.int_customer_orders",
+      "description": "Aggregated customer order metrics",
+      "relation_name": "\"analytics\".\"int_customer_orders\"",
       "columns": {
-        "date": {"dtype": "date", "description": "Sales date"},
-        "date_key": {"dtype": "int", "description": "YYYYMMDD surrogate key"},
-        "total_orders": {"dtype": "int", "description": "Order count"},
-        "total_revenue": {"dtype": "decimal(14,2)", "description": "Total revenue"},
-        "total_cost": {"dtype": "decimal(14,2)", "description": "Total cost"},
-        "total_margin": {"dtype": "decimal(14,2)", "description": "Total gross margin"},
-        "avg_order_value": {"dtype": "decimal(10,2)", "description": "Average order value"}
+        "customer_id": {
+          "data_type": "INTEGER",
+          "description": "Customer ID"
+        },
+        "total_orders": {
+          "data_type": "INTEGER",
+          "description": "Total orders"
+        },
+        "total_revenue": {
+          "data_type": "DECIMAL",
+          "description": "Total revenue"
+        },
+        "avg_order_value": {
+          "data_type": "DECIMAL",
+          "description": "AOV"
+        },
+        "first_order_date": {
+          "data_type": "TIMESTAMP",
+          "description": "First order"
+        },
+        "last_order_date": {
+          "data_type": "TIMESTAMP",
+          "description": "Last order"
+        }
       },
-      "depends_on": {"nodes": ["model.ecommerce.stg_orders"]}
+      "depends_on": {
+        "nodes": [
+          "model.ecommerce.int_order_enrichment"
+        ]
+      },
+      "raw_sql": "SELECT customer_id, COUNT(*) AS total_orders, SUM(net_amount) AS total_revenue, AVG(net_amount) AS avg_order_value, MIN(order_date) AS first_order_date, MAX(order_date) AS last_order_date FROM model.ecommerce.int_order_enrichment GROUP BY customer_id",
+      "compiled_sql": "SELECT customer_id, COUNT(*) AS total_orders, SUM(net_amount) AS total_revenue, AVG(net_amount) AS avg_order_value, MIN(order_date) AS first_order_date, MAX(order_date) AS last_order_date FROM \"analytics\".\"int_order_enrichment\" GROUP BY customer_id"
     },
-    "model.ecommerce.mart_revenue": {
-      "unique_id": "model.ecommerce.mart_revenue",
-      "name": "mart_revenue",
+    "model.ecommerce.int_product_performance": {
+      "name": "int_product_performance",
       "resource_type": "model",
-      "schema": "ecommerce_marts",
-      "description": "Revenue analytics mart — daily and monthly revenue, margin, and order metrics. Feeds executive dashboards and Stripe reconciliation.",
+      "unique_id": "model.ecommerce.int_product_performance",
+      "description": "Product performance metrics by category",
+      "relation_name": "\"analytics\".\"int_product_performance\"",
       "columns": {
-        "date": {"dtype": "date", "description": "Date"},
-        "year": {"dtype": "int", "description": "Year"},
-        "quarter": {"dtype": "int", "description": "Fiscal quarter"},
-        "month": {"dtype": "int", "description": "Month number"},
-        "total_revenue": {"dtype": "decimal(14,2)", "description": "Total revenue in USD"},
-        "total_cost": {"dtype": "decimal(14,2)", "description": "Total cost in USD"},
-        "gross_margin": {"dtype": "decimal(14,2)", "description": "Gross margin in USD"},
-        "order_count": {"dtype": "int", "description": "Total orders"},
-        "avg_order_value": {"dtype": "decimal(10,2)", "description": "Average order value"}
+        "product_id": {
+          "data_type": "INTEGER",
+          "description": "Product ID"
+        },
+        "category": {
+          "data_type": "VARCHAR",
+          "description": "Category"
+        },
+        "total_units_sold": {
+          "data_type": "INTEGER",
+          "description": "Units sold"
+        },
+        "total_revenue": {
+          "data_type": "DECIMAL",
+          "description": "Revenue"
+        },
+        "avg_selling_price": {
+          "data_type": "DECIMAL",
+          "description": "ASP"
+        }
       },
-      "depends_on": {"nodes": ["model.ecommerce.int_order_items", "model.ecommerce.stg_orders", "seed.ecommerce.dim_date"]}
+      "depends_on": {
+        "nodes": [
+          "model.ecommerce.stg_products"
+        ]
+      },
+      "raw_sql": "SELECT p.product_id, p.category, 0 AS total_units_sold, 0 AS total_revenue, p.unit_price AS avg_selling_price FROM model.ecommerce.stg_products p",
+      "compiled_sql": "SELECT p.product_id, p.category, 0 AS total_units_sold, 0 AS total_revenue, p.unit_price AS avg_selling_price FROM \"analytics\".\"stg_products\" p"
     },
-    "model.ecommerce.mart_customer_analytics": {
-      "unique_id": "model.ecommerce.mart_customer_analytics",
-      "name": "mart_customer_analytics",
+    "model.ecommerce.int_marketing_performance": {
+      "name": "int_marketing_performance",
       "resource_type": "model",
-      "schema": "ecommerce_marts",
-      "description": "Customer analytics mart — cohort analysis, LTV segments, and retention curves for growth team.",
+      "unique_id": "model.ecommerce.int_marketing_performance",
+      "description": "Marketing performance by channel",
+      "relation_name": "\"analytics\".\"int_marketing_performance\"",
       "columns": {
-        "signup_month": {"dtype": "varchar", "description": "Signup month in YYYY-MM format"},
-        "country": {"dtype": "varchar", "description": "Country code"},
-        "cohort_size": {"dtype": "int", "description": "Customers in cohort"},
-        "month_0_revenue": {"dtype": "decimal(14,2)", "description": "Revenue in signup month"},
-        "month_1_retention": {"dtype": "decimal(5,2)", "description": "Retention rate at month 1"},
-        "month_3_retention": {"dtype": "decimal(5,2)", "description": "Retention rate at month 3"},
-        "avg_ltv_30d": {"dtype": "decimal(10,2)", "description": "Average LTV at 30 days"}
+        "channel": {
+          "data_type": "VARCHAR",
+          "description": "Channel"
+        },
+        "total_campaigns": {
+          "data_type": "INTEGER",
+          "description": "Campaigns"
+        },
+        "total_budget": {
+          "data_type": "DECIMAL",
+          "description": "Budget"
+        },
+        "total_spend": {
+          "data_type": "DECIMAL",
+          "description": "Spend"
+        },
+        "total_impressions": {
+          "data_type": "BIGINT",
+          "description": "Impressions"
+        },
+        "total_clicks": {
+          "data_type": "BIGINT",
+          "description": "Clicks"
+        },
+        "avg_roas": {
+          "data_type": "DECIMAL",
+          "description": "Avg ROAS"
+        }
       },
-      "depends_on": {"nodes": ["model.ecommerce.int_customer_signups", "seed.ecommerce.dim_date"]}
+      "depends_on": {
+        "nodes": [
+          "model.ecommerce.stg_marketing"
+        ]
+      },
+      "raw_sql": "SELECT channel, COUNT(*) AS total_campaigns, SUM(budget) AS total_budget, SUM(spend) AS total_spend, SUM(impressions) AS total_impressions, SUM(clicks) AS total_clicks, AVG(roas) AS avg_roas FROM model.ecommerce.stg_marketing GROUP BY channel",
+      "compiled_sql": "SELECT channel, COUNT(*) AS total_campaigns, SUM(budget) AS total_budget, SUM(spend) AS total_spend, SUM(impressions) AS total_impressions, SUM(clicks) AS total_clicks, AVG(roas) AS avg_roas FROM \"analytics\".\"stg_marketing\" GROUP BY channel"
     },
-    "model.ecommerce.mart_marketing_roi": {
-      "unique_id": "model.ecommerce.mart_marketing_roi",
-      "name": "mart_marketing_roi",
+    "model.ecommerce.dim_customers": {
+      "name": "dim_customers",
       "resource_type": "model",
-      "schema": "ecommerce_marts",
-      "description": "Marketing ROI mart — channel-level spend efficiency, ROAS, and attributed revenue. Primary input for marketing budget decisions.",
+      "unique_id": "model.ecommerce.dim_customers",
+      "description": "Customer dimension table",
+      "relation_name": "\"analytics\".\"dim_customers\"",
       "columns": {
-        "date": {"dtype": "date", "description": "Date"},
-        "channel": {"dtype": "varchar", "description": "Channel name"},
-        "channel_group": {"dtype": "varchar", "description": "Paid / Owned / Earned"},
-        "spend_usd": {"dtype": "decimal(12,2)", "description": "Total marketing spend"},
-        "attributed_revenue": {"dtype": "decimal(14,2)", "description": "Revenue attributed to this channel"},
-        "roas": {"dtype": "decimal(6,2)", "description": "Return on Ad Spend (revenue / spend)"},
-        "cpa": {"dtype": "decimal(10,2)", "description": "Cost per acquisition"},
-        "blended_roas": {"dtype": "decimal(6,2)", "description": "ROAS blending paid and organic"}
+        "customer_key": {
+          "data_type": "INTEGER",
+          "description": "Surrogate key"
+        },
+        "customer_id": {
+          "data_type": "INTEGER",
+          "description": "Natural key"
+        },
+        "email": {
+          "data_type": "VARCHAR",
+          "description": "Email"
+        },
+        "full_name": {
+          "data_type": "VARCHAR",
+          "description": "Full name"
+        },
+        "phone": {
+          "data_type": "VARCHAR",
+          "description": "Phone"
+        },
+        "country": {
+          "data_type": "VARCHAR",
+          "description": "Country"
+        },
+        "city": {
+          "data_type": "VARCHAR",
+          "description": "City"
+        },
+        "customer_segment": {
+          "data_type": "VARCHAR",
+          "description": "Segment"
+        },
+        "total_orders": {
+          "data_type": "INTEGER",
+          "description": "Total orders"
+        },
+        "total_revenue": {
+          "data_type": "DECIMAL",
+          "description": "Total revenue"
+        },
+        "avg_order_value": {
+          "data_type": "DECIMAL",
+          "description": "AOV"
+        },
+        "first_order_date": {
+          "data_type": "TIMESTAMP",
+          "description": "First order"
+        },
+        "last_order_date": {
+          "data_type": "TIMESTAMP",
+          "description": "Last order"
+        },
+        "created_at": {
+          "data_type": "TIMESTAMP",
+          "description": "Account created"
+        }
       },
-      "depends_on": {"nodes": ["model.ecommerce.int_order_items", "model.ecommerce.stg_orders", "model.ecommerce.stg_marketing_events", "seed.ecommerce.dim_date"]}
+      "depends_on": {
+        "nodes": [
+          "model.ecommerce.stg_customers",
+          "model.ecommerce.int_customer_orders"
+        ]
+      },
+      "raw_sql": "SELECT c.customer_id AS customer_key, c.customer_id, c.email, c.full_name, c.phone, c.country, c.city, c.customer_segment, COALESCE(co.total_orders, 0) AS total_orders, COALESCE(co.total_revenue, 0) AS total_revenue, COALESCE(co.avg_order_value, 0) AS avg_order_value, co.first_order_date, co.last_order_date, c.created_at FROM model.ecommerce.stg_customers c LEFT JOIN model.ecommerce.int_customer_orders co ON c.customer_id = co.customer_id",
+      "compiled_sql": "SELECT c.customer_id AS customer_key, c.customer_id, c.email, c.full_name, c.phone, c.country, c.city, c.customer_segment, COALESCE(co.total_orders, 0) AS total_orders, COALESCE(co.total_revenue, 0) AS total_revenue, COALESCE(co.avg_order_value, 0) AS avg_order_value, co.first_order_date, co.last_order_date, c.created_at FROM \"analytics\".\"stg_customers\" c LEFT JOIN \"analytics\".\"int_customer_orders\" co ON c.customer_id = co.customer_id"
     },
-    "model.ecommerce.mart_product_performance": {
-      "unique_id": "model.ecommerce.mart_product_performance",
-      "name": "mart_product_performance",
+    "model.ecommerce.dim_products": {
+      "name": "dim_products",
       "resource_type": "model",
-      "schema": "ecommerce_marts",
-      "description": "Product performance mart — sales by category and channel, margin analysis, and inventory velocity for merchandising team.",
+      "unique_id": "model.ecommerce.dim_products",
+      "description": "Product dimension table",
+      "relation_name": "\"analytics\".\"dim_products\"",
       "columns": {
-        "date": {"dtype": "date", "description": "Date"},
-        "product_id": {"dtype": "varchar", "description": "Product ID"},
-        "category": {"dtype": "varchar", "description": "Product category"},
-        "channel": {"dtype": "varchar", "description": "Sales channel"},
-        "units_sold": {"dtype": "int", "description": "Quantity sold"},
-        "revenue": {"dtype": "decimal(14,2)", "description": "Revenue in USD"},
-        "gross_margin": {"dtype": "decimal(14,2)", "description": "Gross margin in USD"},
-        "margin_pct": {"dtype": "decimal(5,2)", "description": "Margin percentage"}
+        "product_key": {
+          "data_type": "INTEGER",
+          "description": "Surrogate key"
+        },
+        "product_id": {
+          "data_type": "INTEGER",
+          "description": "Natural key"
+        },
+        "sku": {
+          "data_type": "VARCHAR",
+          "description": "SKU"
+        },
+        "product_name": {
+          "data_type": "VARCHAR",
+          "description": "Product name"
+        },
+        "category": {
+          "data_type": "VARCHAR",
+          "description": "Category"
+        },
+        "subcategory": {
+          "data_type": "VARCHAR",
+          "description": "Subcategory"
+        },
+        "brand": {
+          "data_type": "VARCHAR",
+          "description": "Brand"
+        },
+        "unit_price": {
+          "data_type": "DECIMAL",
+          "description": "List price"
+        },
+        "cost": {
+          "data_type": "DECIMAL",
+          "description": "COGS"
+        },
+        "margin_pct": {
+          "data_type": "DECIMAL",
+          "description": "Margin %"
+        },
+        "is_active": {
+          "data_type": "BOOLEAN",
+          "description": "Is active"
+        }
       },
-      "depends_on": {"nodes": ["model.ecommerce.int_order_items", "seed.ecommerce.dim_date", "seed.ecommerce.dim_channel"]}
+      "depends_on": {
+        "nodes": [
+          "model.ecommerce.stg_products"
+        ]
+      },
+      "raw_sql": "SELECT p.product_id AS product_key, p.product_id, p.sku, p.product_name, p.category, p.subcategory, p.brand, p.unit_price, p.cost, p.margin_pct, p.is_active FROM model.ecommerce.stg_products p",
+      "compiled_sql": "SELECT p.product_id AS product_key, p.product_id, p.sku, p.product_name, p.category, p.subcategory, p.brand, p.unit_price, p.cost, p.margin_pct, p.is_active FROM \"analytics\".\"stg_products\" p"
     },
-    "model.ecommerce.mart_inventory": {
-      "unique_id": "model.ecommerce.mart_inventory",
-      "name": "mart_inventory",
+    "model.ecommerce.fct_orders": {
+      "name": "fct_orders",
       "resource_type": "model",
-      "schema": "ecommerce_marts",
-      "description": "Inventory mart — current stock levels, sell-through rate, and reorder alerts for operations team.",
+      "unique_id": "model.ecommerce.fct_orders",
+      "description": "Order fact table — central fact for order analytics",
+      "relation_name": "\"analytics\".\"fct_orders\"",
       "columns": {
-        "product_id": {"dtype": "varchar", "description": "Product ID"},
-        "sku": {"dtype": "varchar", "description": "SKU"},
-        "category": {"dtype": "varchar", "description": "Product category"},
-        "current_qty": {"dtype": "int", "description": "Current inventory quantity"},
-        "units_sold_30d": {"dtype": "int", "description": "Units sold in last 30 days"},
-        "sell_through_rate": {"dtype": "decimal(5,2)", "description": "Units sold / (units sold + current qty)"},
-        "days_of_stock": {"dtype": "int", "description": "Estimated days until stockout"},
-        "reorder_recommended": {"dtype": "boolean", "description": "True if days_of_stock < 14"}
+        "order_key": {
+          "data_type": "VARCHAR",
+          "description": "Surrogate key"
+        },
+        "order_id": {
+          "data_type": "VARCHAR",
+          "description": "Natural key"
+        },
+        "customer_key": {
+          "data_type": "INTEGER",
+          "description": "Customer FK"
+        },
+        "order_date": {
+          "data_type": "TIMESTAMP",
+          "description": "Order date"
+        },
+        "order_hour": {
+          "data_type": "INTEGER",
+          "description": "Hour of day"
+        },
+        "order_day_of_week": {
+          "data_type": "INTEGER",
+          "description": "Day of week"
+        },
+        "order_month": {
+          "data_type": "INTEGER",
+          "description": "Month"
+        },
+        "order_year": {
+          "data_type": "INTEGER",
+          "description": "Year"
+        },
+        "order_status": {
+          "data_type": "VARCHAR",
+          "description": "Status"
+        },
+        "net_amount": {
+          "data_type": "DECIMAL",
+          "description": "Net amount"
+        },
+        "payment_method": {
+          "data_type": "VARCHAR",
+          "description": "Payment"
+        },
+        "country": {
+          "data_type": "VARCHAR",
+          "description": "Country"
+        },
+        "customer_segment": {
+          "data_type": "VARCHAR",
+          "description": "Segment"
+        },
+        "is_new_customer": {
+          "data_type": "BOOLEAN",
+          "description": "New customer flag"
+        }
       },
-      "depends_on": {"nodes": ["model.ecommerce.int_order_items", "model.ecommerce.stg_orders", "seed.ecommerce.dim_date"]}
+      "depends_on": {
+        "nodes": [
+          "model.ecommerce.int_order_enrichment"
+        ]
+      },
+      "raw_sql": "SELECT o.order_id AS order_key, o.order_id, o.customer_id AS customer_key, o.order_date, HOUR(o.order_date) AS order_hour, DAYOFWEEK(o.order_date) AS order_day_of_week, MONTH(o.order_date) AS order_month, YEAR(o.order_date) AS order_year, o.order_status, o.net_amount, o.payment_method, o.country, o.customer_segment, o.is_new_customer FROM model.ecommerce.int_order_enrichment o",
+      "compiled_sql": "SELECT o.order_id AS order_key, o.order_id, o.customer_id AS customer_key, o.order_date, HOUR(o.order_date) AS order_hour, DAYOFWEEK(o.order_date) AS order_day_of_week, MONTH(o.order_date) AS order_month, YEAR(o.order_date) AS order_year, o.order_status, o.net_amount, o.payment_method, o.country, o.customer_segment, o.is_new_customer FROM \"analytics\".\"int_order_enrichment\" o"
+    },
+    "model.ecommerce.fct_revenue": {
+      "name": "fct_revenue",
+      "resource_type": "model",
+      "unique_id": "model.ecommerce.fct_revenue",
+      "description": "Revenue fact table with daily and segment aggregations",
+      "relation_name": "\"analytics\".\"fct_revenue\"",
+      "columns": {
+        "date_day": {
+          "data_type": "DATE",
+          "description": "Calendar date"
+        },
+        "customer_segment": {
+          "data_type": "VARCHAR",
+          "description": "Segment"
+        },
+        "country": {
+          "data_type": "VARCHAR",
+          "description": "Country"
+        },
+        "total_orders": {
+          "data_type": "INTEGER",
+          "description": "Orders"
+        },
+        "total_revenue": {
+          "data_type": "DECIMAL",
+          "description": "Revenue"
+        },
+        "avg_order_value": {
+          "data_type": "DECIMAL",
+          "description": "AOV"
+        },
+        "new_customers": {
+          "data_type": "INTEGER",
+          "description": "New customers"
+        }
+      },
+      "depends_on": {
+        "nodes": [
+          "model.ecommerce.fct_orders"
+        ]
+      },
+      "raw_sql": "SELECT CAST(o.order_date AS DATE) AS date_day, o.customer_segment, o.country, COUNT(*) AS total_orders, SUM(o.net_amount) AS total_revenue, AVG(o.net_amount) AS avg_order_value, COUNTIF(o.is_new_customer = TRUE) AS new_customers FROM model.ecommerce.fct_orders o GROUP BY CAST(o.order_date AS DATE), o.customer_segment, o.country",
+      "compiled_sql": "SELECT CAST(o.order_date AS DATE) AS date_day, o.customer_segment, o.country, COUNT(*) AS total_orders, SUM(o.net_amount) AS total_revenue, AVG(o.net_amount) AS avg_order_value, COUNTIF(o.is_new_customer = TRUE) AS new_customers FROM \"analytics\".\"fct_orders\" o GROUP BY CAST(o.order_date AS DATE), o.customer_segment, o.country"
+    },
+    "model.ecommerce.fct_marketing": {
+      "name": "fct_marketing",
+      "resource_type": "model",
+      "unique_id": "model.ecommerce.fct_marketing",
+      "description": "Marketing fact table aggregated by campaign",
+      "relation_name": "\"analytics\".\"fct_marketing\"",
+      "columns": {
+        "campaign_key": {
+          "data_type": "INTEGER",
+          "description": "Surrogate key"
+        },
+        "campaign_id": {
+          "data_type": "INTEGER",
+          "description": "Campaign ID"
+        },
+        "campaign_name": {
+          "data_type": "VARCHAR",
+          "description": "Campaign name"
+        },
+        "channel": {
+          "data_type": "VARCHAR",
+          "description": "Channel"
+        },
+        "start_date": {
+          "data_type": "DATE",
+          "description": "Start"
+        },
+        "end_date": {
+          "data_type": "DATE",
+          "description": "End"
+        },
+        "budget": {
+          "data_type": "DECIMAL",
+          "description": "Budget"
+        },
+        "spend": {
+          "data_type": "DECIMAL",
+          "description": "Spend"
+        },
+        "roas": {
+          "data_type": "DECIMAL",
+          "description": "ROAS"
+        },
+        "ctr": {
+          "data_type": "DECIMAL",
+          "description": "CTR"
+        }
+      },
+      "depends_on": {
+        "nodes": [
+          "model.ecommerce.stg_marketing"
+        ]
+      },
+      "raw_sql": "SELECT m.campaign_id AS campaign_key, m.campaign_id, m.campaign_name, m.channel, m.start_date, m.end_date, m.budget, m.spend, m.roas, m.ctr FROM model.ecommerce.stg_marketing m",
+      "compiled_sql": "SELECT m.campaign_id AS campaign_key, m.campaign_id, m.campaign_name, m.channel, m.start_date, m.end_date, m.budget, m.spend, m.roas, m.ctr FROM \"analytics\".\"stg_marketing\" m"
     }
   },
-  "parent_map": {},
-  "child_map": {}
+  "sources": {
+    "source.ecommerce.raw_orders": {
+      "name": "raw_orders",
+      "resource_type": "source",
+      "unique_id": "source.ecommerce.raw_orders",
+      "description": "Raw order transactions from the e-commerce platform",
+      "relation_name": "\"ecommerce\".\"raw_orders\"",
+      "columns": {
+        "order_id": {
+          "data_type": "VARCHAR",
+          "description": "Primary key"
+        },
+        "customer_id": {
+          "data_type": "INTEGER",
+          "description": "Customer FK"
+        },
+        "order_date": {
+          "data_type": "TIMESTAMP",
+          "description": "When order was placed"
+        },
+        "status": {
+          "data_type": "VARCHAR",
+          "description": "pending/confirmed/shipped/delivered/cancelled"
+        },
+        "total_amount": {
+          "data_type": "DECIMAL",
+          "description": "Total order value"
+        },
+        "discount_amount": {
+          "data_type": "DECIMAL",
+          "description": "Discount applied"
+        },
+        "shipping_cost": {
+          "data_type": "DECIMAL",
+          "description": "Shipping charge"
+        },
+        "payment_method": {
+          "data_type": "VARCHAR",
+          "description": "credit_card/paypal/apple_pay"
+        },
+        "shipping_address_id": {
+          "data_type": "INTEGER",
+          "description": "Address FK"
+        },
+        "created_at": {
+          "data_type": "TIMESTAMP",
+          "description": "Record creation time"
+        }
+      },
+      "depends_on": {
+        "nodes": []
+      },
+      "raw_sql": "",
+      "compiled_sql": ""
+    },
+    "source.ecommerce.raw_customers": {
+      "name": "raw_customers",
+      "resource_type": "source",
+      "unique_id": "source.ecommerce.raw_customers",
+      "description": "Customer master data",
+      "relation_name": "\"ecommerce\".\"raw_customers\"",
+      "columns": {
+        "customer_id": {
+          "data_type": "INTEGER",
+          "description": "Primary key"
+        },
+        "email": {
+          "data_type": "VARCHAR",
+          "description": "Email address"
+        },
+        "first_name": {
+          "data_type": "VARCHAR",
+          "description": "First name"
+        },
+        "last_name": {
+          "data_type": "VARCHAR",
+          "description": "Last name"
+        },
+        "phone": {
+          "data_type": "VARCHAR",
+          "description": "Phone number"
+        },
+        "created_at": {
+          "data_type": "TIMESTAMP",
+          "description": "Account creation date"
+        },
+        "country": {
+          "data_type": "VARCHAR",
+          "description": "Country code"
+        },
+        "city": {
+          "data_type": "VARCHAR",
+          "description": "City"
+        },
+        "customer_segment": {
+          "data_type": "VARCHAR",
+          "description": "retail/wholesale/vip"
+        },
+        "lifetime_value": {
+          "data_type": "DECIMAL",
+          "description": "Customer lifetime value"
+        }
+      },
+      "depends_on": {
+        "nodes": []
+      },
+      "raw_sql": "",
+      "compiled_sql": ""
+    },
+    "source.ecommerce.raw_products": {
+      "name": "raw_products",
+      "resource_type": "source",
+      "unique_id": "source.ecommerce.raw_products",
+      "description": "Product catalog",
+      "relation_name": "\"ecommerce\".\"raw_products\"",
+      "columns": {
+        "product_id": {
+          "data_type": "INTEGER",
+          "description": "Primary key"
+        },
+        "sku": {
+          "data_type": "VARCHAR",
+          "description": "Stock keeping unit"
+        },
+        "product_name": {
+          "data_type": "VARCHAR",
+          "description": "Product display name"
+        },
+        "category": {
+          "data_type": "VARCHAR",
+          "description": "Product category"
+        },
+        "subcategory": {
+          "data_type": "VARCHAR",
+          "description": "Product subcategory"
+        },
+        "brand": {
+          "data_type": "VARCHAR",
+          "description": "Brand name"
+        },
+        "unit_price": {
+          "data_type": "DECIMAL",
+          "description": "List price"
+        },
+        "cost": {
+          "data_type": "DECIMAL",
+          "description": "Cost of goods"
+        },
+        "is_active": {
+          "data_type": "BOOLEAN",
+          "description": "Currently sellable"
+        },
+        "weight_kg": {
+          "data_type": "DECIMAL",
+          "description": "Shipping weight"
+        }
+      },
+      "depends_on": {
+        "nodes": []
+      },
+      "raw_sql": "",
+      "compiled_sql": ""
+    },
+    "source.ecommerce.raw_marketing": {
+      "name": "raw_marketing",
+      "resource_type": "source",
+      "unique_id": "source.ecommerce.raw_marketing",
+      "description": "Marketing campaign and attribution data",
+      "relation_name": "\"ecommerce\".\"raw_marketing\"",
+      "columns": {
+        "campaign_id": {
+          "data_type": "INTEGER",
+          "description": "Primary key"
+        },
+        "campaign_name": {
+          "data_type": "VARCHAR",
+          "description": "Campaign display name"
+        },
+        "channel": {
+          "data_type": "VARCHAR",
+          "description": "google/facebook/email/affiliate"
+        },
+        "start_date": {
+          "data_type": "DATE",
+          "description": "Campaign start"
+        },
+        "end_date": {
+          "data_type": "DATE",
+          "description": "Campaign end"
+        },
+        "budget": {
+          "data_type": "DECIMAL",
+          "description": "Campaign budget"
+        },
+        "spend": {
+          "data_type": "DECIMAL",
+          "description": "Actual spend"
+        },
+        "impressions": {
+          "data_type": "INTEGER",
+          "description": "Total impressions"
+        },
+        "clicks": {
+          "data_type": "INTEGER",
+          "description": "Total clicks"
+        },
+        "conversions": {
+          "data_type": "INTEGER",
+          "description": "Attributed conversions"
+        }
+      },
+      "depends_on": {
+        "nodes": []
+      },
+      "raw_sql": "",
+      "compiled_sql": ""
+    },
+    "source.ecommerce.raw_inventory": {
+      "name": "raw_inventory",
+      "resource_type": "source",
+      "unique_id": "source.ecommerce.raw_inventory",
+      "description": "Warehouse inventory levels",
+      "relation_name": "\"ecommerce\".\"raw_inventory\"",
+      "columns": {
+        "inventory_id": {
+          "data_type": "INTEGER",
+          "description": "Primary key"
+        },
+        "product_id": {
+          "data_type": "INTEGER",
+          "description": "Product FK"
+        },
+        "warehouse_id": {
+          "data_type": "INTEGER",
+          "description": "Warehouse FK"
+        },
+        "quantity_on_hand": {
+          "data_type": "INTEGER",
+          "description": "Available stock"
+        },
+        "quantity_reserved": {
+          "data_type": "INTEGER",
+          "description": "Reserved for orders"
+        },
+        "quantity_available": {
+          "data_type": "INTEGER",
+          "description": "Available for sale"
+        },
+        "reorder_point": {
+          "data_type": "INTEGER",
+          "description": "Low stock threshold"
+        },
+        "last_restocked": {
+          "data_type": "DATE",
+          "description": "Last restock date"
+        }
+      },
+      "depends_on": {
+        "nodes": []
+      },
+      "raw_sql": "",
+      "compiled_sql": ""
+    }
+  },
+  "parent_map": {
+    "model.ecommerce.stg_orders": [
+      "source.ecommerce.raw_orders"
+    ],
+    "model.ecommerce.stg_customers": [
+      "source.ecommerce.raw_customers"
+    ],
+    "model.ecommerce.stg_products": [
+      "source.ecommerce.raw_products"
+    ],
+    "model.ecommerce.stg_marketing": [
+      "source.ecommerce.raw_marketing"
+    ],
+    "model.ecommerce.stg_inventory": [
+      "source.ecommerce.raw_inventory"
+    ],
+    "model.ecommerce.int_order_items": [
+      "model.ecommerce.stg_orders"
+    ],
+    "model.ecommerce.int_order_enrichment": [
+      "model.ecommerce.int_order_items",
+      "model.ecommerce.stg_customers"
+    ],
+    "model.ecommerce.int_customer_orders": [
+      "model.ecommerce.int_order_enrichment"
+    ],
+    "model.ecommerce.int_product_performance": [
+      "model.ecommerce.stg_products"
+    ],
+    "model.ecommerce.int_marketing_performance": [
+      "model.ecommerce.stg_marketing"
+    ],
+    "model.ecommerce.dim_customers": [
+      "model.ecommerce.stg_customers",
+      "model.ecommerce.int_customer_orders"
+    ],
+    "model.ecommerce.dim_products": [
+      "model.ecommerce.stg_products"
+    ],
+    "model.ecommerce.fct_orders": [
+      "model.ecommerce.int_order_enrichment"
+    ],
+    "model.ecommerce.fct_revenue": [
+      "model.ecommerce.fct_orders"
+    ],
+    "model.ecommerce.fct_marketing": [
+      "model.ecommerce.stg_marketing"
+    ],
+    "source.ecommerce.raw_orders": [],
+    "source.ecommerce.raw_customers": [],
+    "source.ecommerce.raw_products": [],
+    "source.ecommerce.raw_marketing": [],
+    "source.ecommerce.raw_inventory": []
+  },
+  "child_map": {
+    "model.ecommerce.stg_orders": [
+      "model.ecommerce.int_order_items"
+    ],
+    "model.ecommerce.stg_customers": [
+      "model.ecommerce.int_order_enrichment",
+      "model.ecommerce.dim_customers"
+    ],
+    "model.ecommerce.stg_products": [
+      "model.ecommerce.int_product_performance",
+      "model.ecommerce.dim_products"
+    ],
+    "model.ecommerce.stg_marketing": [
+      "model.ecommerce.int_marketing_performance",
+      "model.ecommerce.fct_marketing"
+    ],
+    "model.ecommerce.stg_inventory": [],
+    "model.ecommerce.int_order_items": [
+      "model.ecommerce.int_order_enrichment"
+    ],
+    "model.ecommerce.int_order_enrichment": [
+      "model.ecommerce.int_customer_orders",
+      "model.ecommerce.fct_orders"
+    ],
+    "model.ecommerce.int_customer_orders": [
+      "model.ecommerce.dim_customers"
+    ],
+    "model.ecommerce.int_product_performance": [],
+    "model.ecommerce.int_marketing_performance": [],
+    "model.ecommerce.dim_customers": [],
+    "model.ecommerce.dim_products": [],
+    "model.ecommerce.fct_orders": [
+      "model.ecommerce.fct_revenue"
+    ],
+    "model.ecommerce.fct_revenue": [],
+    "model.ecommerce.fct_marketing": [],
+    "source.ecommerce.raw_orders": [
+      "model.ecommerce.stg_orders"
+    ],
+    "source.ecommerce.raw_customers": [
+      "model.ecommerce.stg_customers"
+    ],
+    "source.ecommerce.raw_products": [
+      "model.ecommerce.stg_products"
+    ],
+    "source.ecommerce.raw_marketing": [
+      "model.ecommerce.stg_marketing"
+    ],
+    "source.ecommerce.raw_inventory": [
+      "model.ecommerce.stg_inventory"
+    ]
+  }
 }

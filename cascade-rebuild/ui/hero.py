@@ -283,6 +283,124 @@ details[open] > summary > span > span:first-child::before {
     border-radius: 0 0 8px 8px !important;
 }
 
+/* ── File uploader (dropzone + button) ──────────────────────────────────
+   Same Material font issue: the upload icon span renders 'upload' as text
+   on top of the 'Upload' label, producing 'uploadUpload'. Make the icon
+   invisible and re-style the whole widget to fit the dark theme. */
+[data-testid="stFileUploaderDropzone"] {
+    background: #161B22 !important;
+    border: 1.5px dashed #30363D !important;
+    border-radius: 10px !important;
+    padding: 28px 20px !important;
+    transition: all 0.2s ease !important;
+}
+[data-testid="stFileUploaderDropzone"]:hover {
+    border-color: #58A6FF !important;
+    background: #1A2030 !important;
+}
+[data-testid="stFileUploaderDropzone"] section {
+    padding: 0 !important;
+}
+[data-testid="stFileUploaderDropzone"] span[data-testid="stIconMaterial"] {
+    color: transparent !important;
+    font-size: 0 !important;
+    width: 24px !important;
+    height: 24px !important;
+    display: inline-block !important;
+    position: relative !important;
+}
+[data-testid="stFileUploaderDropzone"] span[data-testid="stIconMaterial"]::before {
+    content: "⬆" !important;
+    color: #58A6FF !important;
+    font-size: 22px !important;
+    position: absolute !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    pointer-events: none !important;
+}
+/* Style the inner "Drag and drop file here" text */
+[data-testid="stFileUploaderDropzone"] span,
+[data-testid="stFileUploaderDropzone"] small {
+    color: #8B949E !important;
+    font-family: 'Inter', sans-serif !important;
+}
+[data-testid="stFileUploaderDropzone"] small {
+    color: #6E7681 !important;
+    font-size: 11px !important;
+}
+/* Style the "Browse files" button */
+[data-testid="stFileUploaderDropzone"] button {
+    background: #58A6FF !important;
+    color: #0D1117 !important;
+    border: none !important;
+    border-radius: 6px !important;
+    padding: 8px 16px !important;
+    font-weight: 600 !important;
+    font-family: 'Inter', sans-serif !important;
+    font-size: 13px !important;
+    transition: all 0.15s ease !important;
+}
+[data-testid="stFileUploaderDropzone"] button:hover {
+    background: #79B8FF !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 12px #58A6FF40 !important;
+}
+/* "Choose File" button shown in collapsed state */
+[data-testid="stFileUploaderDropzone"] button[data-testid="baseButton-secondary"] {
+    background: transparent !important;
+    color: #58A6FF !important;
+    border: 1px solid #58A6FF !important;
+}
+[data-testid="stFileUploaderDropzone"] button[data-testid="baseButton-secondary"]:hover {
+    background: #58A6FF20 !important;
+    color: #79B8FF !important;
+}
+/* Hide the icon font text in the secondary "Choose File" button */
+[data-testid="stFileUploaderDropzone"] button span[data-testid="stIconMaterial"] {
+    color: transparent !important;
+    font-size: 0 !important;
+}
+
+/* ── Get-Started section cards (Upload / Demo) ───────────────────────────
+   Replaces plain markdown headers with a proper card header. */
+.cascade-section-card {
+    background: #161B22;
+    border: 1px solid #30363D;
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin-bottom: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.cascade-section-icon {
+    font-size: 22px;
+    line-height: 1;
+    margin-bottom: 2px;
+}
+.cascade-section-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px;
+    font-weight: 700;
+    color: #E6EDF3;
+}
+.cascade-section-desc {
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    color: #8B949E;
+    line-height: 1.5;
+}
+.cascade-section-desc code {
+    background: #0D1117;
+    color: #79B8FF;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    border: 1px solid #30363D;
+}
+
 /* Dataframe styling */
 .streamlit-dataframe {
     background: #161B22 !important;

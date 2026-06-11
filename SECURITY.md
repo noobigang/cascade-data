@@ -90,6 +90,22 @@ grep -v "streamlit\\|font" /tmp/cascade.trace | head -50
 
 You should see `open()` calls for the manifest file you uploaded, and no `connect()` calls except to `localhost:8502` (the app's own server).
 
+## About the example `profiles.yml`
+
+The `examples/jaffle_shop_minimal/profiles.yml` file uses dbt's standard `{{ env_var('XXX', 'default') }}` template syntax. The fallback value for the password is `'postgres'`. This is a **template default**, not a credential — it is only used if the `DBT_POSTGRES_PASSWORD` environment variable is unset, which would only happen on a local development machine. It is not a real password and grants no access to anything.
+
+**Do not connect the example project to a database that uses default credentials in any non-localhost environment.** The example is for local learning only.
+
+## Automated security tooling
+
+This repository uses GitHub's free security tooling:
+
+- **Dependabot** — `.github/dependabot.yml` is configured to check Python dependencies (`requirements.txt`) and GitHub Actions versions weekly. PRs are opened automatically when upgrades are available.
+- **Secret scanning** — enabled in repository settings. If a credential pattern is committed, the push is blocked and an alert is opened.
+- **Push protection** — same as above, blocks the push itself rather than alerting after the fact.
+
+If you fork or copy this repo, please re-enable these features in your fork's **Settings → Code security and analysis**.
+
 ## If you find a security issue
 
 Please open a private issue at https://github.com/noobigang/cascade-data/security or email the maintainers (see the GitHub profile). Do not open a public issue for security vulnerabilities.

@@ -38,7 +38,7 @@ classifiers = [
 dependencies = [
     "streamlit>=1.40.0",
     "networkx>=3.0",
-    "sqlglot>=25.0.0",
+    "sqlglot>=30.10.0",
     "pandas>=2.0.0",
     "streamlit-js-eval>=0.1.0",
 ]

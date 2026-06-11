@@ -9,7 +9,6 @@ from pathlib import Path
 
 from lineage.models import ColumnNode, LineageGraph, TableNode
 
-
 # Resource types we surface in the lineage graph. dbt also emits test.* and
 # metric.* nodes — they're metadata, not data, so we drop them.
 _LINEAGE_RESOURCE_TYPES = frozenset({"model", "source", "seed", "snapshot"})

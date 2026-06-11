@@ -6,13 +6,10 @@ not the legacy `cascade/` package).
 """
 from __future__ import annotations
 
-import warnings
-
 import pytest
 
 from lineage.models import ColumnNode, LineageGraph, TableNode
 from lineage.parser import parse_manifest, parse_manifest_from_dict
-
 
 # ─────────────────────────────────────────────────────────────────
 # ColumnNode tests

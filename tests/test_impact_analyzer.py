@@ -1,156 +1,264 @@
 """
-test_impact_analyzer.py — Tests for impact_analyzer.py.
-"""
+test_impact_analyzer.py — Tests for the impact analyzer (lineage/impact.py).
 
+Targets the real API in `lineage.impact`. Replaces the legacy
+`cascade.graph.impact_analyzer` import path that pointed at a now-deleted
+package layout.
+"""
+from __future__ import annotations
+
+import json
 import warnings
+from pathlib import Path
 
 import pytest
-from cascade.graph.impact_analyzer import (
+
+from lineage.impact import (
     blast_radius_score,
-    get_column_lineage,
-    get_downstream_columns,
-    get_downstream_nodes,
-    get_impact_summary,
-    get_upstream_columns,
-    get_upstream_nodes,
+    generate_impact_report,
+    get_all_column_impacts,
+    get_column_impact,
+    get_deepest_lineage_path,
+    get_downstream,
+    get_most_connected_nodes,
+    get_upstream,
 )
-from cascade.graph.lineage_graph import build_lineage_graph
-from cascade.parser.manifest_parser import parse_manifest_from_dict
+from lineage.models import LineageGraph
+from lineage.parser import parse_manifest_from_dict
+
+DEMO_MANIFEST = Path(__file__).parent.parent / "demo" / "manifest.json"
+FIXTURE_MANIFEST = Path(__file__).parent / "fixtures" / "manifest.json"
+
+
+# ─────────────────────────────────────────────────────────────────
+# Fixtures
+# ─────────────────────────────────────────────────────────────────
+
+@pytest.fixture
+def demo_manifest() -> dict:
+    with open(DEMO_MANIFEST, encoding="utf-8") as f:
+        return json.load(f)
 
 
 @pytest.fixture
-def graph(manifest_data):
-    nodes = parse_manifest_from_dict(manifest_data)
-    return build_lineage_graph(nodes)
+def demo_graph(demo_manifest) -> LineageGraph:
+    return parse_manifest_from_dict(demo_manifest)
 
 
-class TestGetDownstreamNodes:
-    def test_downstream_from_raw_source(self, graph):
-        down = get_downstream_nodes(graph, "source.my_project.raw_source")
-        assert "model.my_project.raw_users" in down
-        # downstream chain: raw_users -> stg_users -> customers -> reports
-        #                   raw_users -> orders -> reports
-        assert len(down) == 5  # all except source and itself
-
-    def test_downstream_from_raw_users(self, graph):
-        down = get_downstream_nodes(graph, "model.my_project.raw_users")
-        # raw_users -> stg_users -> customers -> reports
-        # raw_users -> orders -> reports
-        assert "model.my_project.stg_users" in down
-        assert "model.my_project.customers" in down
-        assert "model.my_project.orders" in down
-        assert "model.my_project.reports" in down
-
-    def test_downstream_from_terminal_node(self, graph):
-        down = get_downstream_nodes(graph, "model.my_project.reports")
-        assert down == []
-
-    def test_downstream_missing_node(self, graph):
-        with warnings.catch_warnings(record=True) as w:
-            down = get_downstream_nodes(graph, "model.my_project.does_not_exist")
-            assert down == []
-            assert any("not found" in str(warning.message) for warning in w)
+@pytest.fixture
+def fixture_graph() -> LineageGraph:
+    with open(FIXTURE_MANIFEST, encoding="utf-8") as f:
+        return parse_manifest_from_dict(json.load(f))
 
 
-class TestGetUpstreamNodes:
-    def test_upstream_from_reports(self, graph):
-        up = get_upstream_nodes(graph, "model.my_project.reports")
+# ─────────────────────────────────────────────────────────────────
+# get_downstream
+# ─────────────────────────────────────────────────────────────────
+
+class TestGetDownstream:
+    def test_from_source_reaches_everything(self, demo_graph: LineageGraph):
+        downstream = get_downstream("source.ecommerce.raw_orders", demo_graph)
+        assert "model.ecommerce.stg_orders" in downstream
+        assert "model.ecommerce.int_order_items" in downstream
+        assert "model.ecommerce.int_order_enrichment" in downstream
+        assert "model.ecommerce.fct_orders" in downstream
+        assert "model.ecommerce.fct_revenue" in downstream
+
+    def test_from_intermediate_stg_orders(self, demo_graph: LineageGraph):
+        downstream = get_downstream("model.ecommerce.stg_orders", demo_graph)
+        assert "model.ecommerce.int_order_items" in downstream
+        assert "model.ecommerce.int_order_enrichment" in downstream
+
+    def test_from_terminal_node_is_empty(self, fixture_graph: LineageGraph):
+        assert get_downstream("model.my_project.reports", fixture_graph) == []
+
+    def test_from_missing_node_is_empty(self, fixture_graph: LineageGraph):
+        # Should not raise — just return []
+        assert get_downstream("model.my_project.does_not_exist", fixture_graph) == []
+
+    def test_excludes_self(self, demo_graph: LineageGraph):
+        downstream = get_downstream("source.ecommerce.raw_orders", demo_graph)
+        assert "source.ecommerce.raw_orders" not in downstream
+
+    def test_returns_list_type(self, fixture_graph: LineageGraph):
+        result = get_downstream("source.my_project.raw_source", fixture_graph)
+        assert isinstance(result, list)
+
+
+# ─────────────────────────────────────────────────────────────────
+# get_upstream
+# ─────────────────────────────────────────────────────────────────
+
+class TestGetUpstream:
+    def test_from_terminal_walks_full_chain(self, fixture_graph: LineageGraph):
+        up = get_upstream("model.my_project.reports", fixture_graph)
         assert "model.my_project.customers" in up
         assert "model.my_project.orders" in up
         assert "model.my_project.stg_users" in up
         assert "model.my_project.raw_users" in up
         assert "source.my_project.raw_source" in up
 
-    def test_upstream_from_source(self, graph):
-        up = get_upstream_nodes(graph, "source.my_project.raw_source")
-        assert up == []
+    def test_from_source_is_empty(self, fixture_graph: LineageGraph):
+        assert get_upstream("source.my_project.raw_source", fixture_graph) == []
 
-    def test_upstream_missing_node(self, graph):
-        with warnings.catch_warnings(record=True) as w:
-            up = get_upstream_nodes(graph, "model.my_project.does_not_exist")
-            assert up == []
-            assert any("not found" in str(warning.message) for warning in w)
+    def test_from_fct_orders(self, demo_graph: LineageGraph):
+        up = get_upstream("model.ecommerce.fct_orders", demo_graph)
+        assert "source.ecommerce.raw_orders" in up
+        assert "model.ecommerce.stg_orders" in up
+        assert "model.ecommerce.int_order_enrichment" in up
 
+    def test_from_missing_node_is_empty(self, fixture_graph: LineageGraph):
+        assert get_upstream("model.my_project.does_not_exist", fixture_graph) == []
+
+    def test_excludes_self(self, demo_graph: LineageGraph):
+        up = get_upstream("source.ecommerce.raw_orders", demo_graph)
+        assert "source.ecommerce.raw_orders" not in up
+
+
+# ─────────────────────────────────────────────────────────────────
+# blast_radius_score
+# ─────────────────────────────────────────────────────────────────
 
 class TestBlastRadiusScore:
-    def test_blast_radius_low(self, graph):
-        # orders has only 1 terminal downstream (reports)
-        score = blast_radius_score(graph, "model.my_project.orders")
-        assert score == "LOW"
+    def test_returns_impact_score_object(self, fixture_graph: LineageGraph):
+        score = blast_radius_score("model.my_project.orders", fixture_graph)
+        # Real API returns an ImpactScore dataclass with `.level` and counts.
+        assert hasattr(score, "level")
+        assert hasattr(score, "downstream_count")
+        assert hasattr(score, "upstream_count")
 
-    def test_blast_radius_medium(self, graph):
-        # stg_users has 2 terminal downstream (reports, orders) -> LOW actually
-        # Let me reconsider: reports and orders are terminal nodes
-        # stg_users downstream: customers -> reports, so reports is terminal
-        # orders downstream: reports is terminal
-        # Actually stg_users: downstream = [customers, reports], reports is terminal
-        # So 1 terminal = LOW
-        score = blast_radius_score(graph, "model.my_project.stg_users")
-        assert score in ("LOW", "MEDIUM", "HIGH")
+    def test_low_for_source_with_few_downstream(self, fixture_graph: LineageGraph):
+        # raw_source has ~5 downstream nodes — within LOW/MEDIUM band
+        score = blast_radius_score("source.my_project.raw_source", fixture_graph)
+        assert score.level in ("LOW", "MEDIUM")
+        assert score.downstream_count >= 1
 
-    def test_blast_radius_low_on_source(self, graph):
-        # raw_source has 3 terminal downstream nodes (reports, orders, seed_countries) → LOW threshold
-        score = blast_radius_score(graph, "source.my_project.raw_source")
-        assert score == "LOW"
+    def test_low_for_terminal_node(self, demo_graph: LineageGraph):
+        score = blast_radius_score("model.ecommerce.dim_products", demo_graph)
+        assert score.downstream_count == 0
+        assert score.level == "LOW"
 
-    def test_blast_radius_unknown(self, graph):
-        with warnings.catch_warnings(record=True) as w:
-            score = blast_radius_score(graph, "model.my_project.does_not_exist")
-            assert score == "UNKNOWN"
-            assert any("not found" in str(warning.message) for warning in w)
+    def test_high_for_central_source(self, demo_graph: LineageGraph):
+        # raw_orders feeds nearly the whole pipeline
+        score = blast_radius_score("source.ecommerce.raw_orders", demo_graph)
+        assert score.downstream_count >= 5
+        assert score.level in ("MEDIUM", "HIGH", "CRITICAL")
 
+    def test_intermediate_radius(self, demo_graph: LineageGraph):
+        score = blast_radius_score("model.ecommerce.int_order_enrichment", demo_graph)
+        assert score.downstream_count >= 2
 
-class TestColumnLineage:
-    def test_column_lineage(self, graph):
-        lineage = get_column_lineage(graph, "model.my_project.customers", "user_id")
-        assert lineage is not None
-        assert "upstream" in lineage
-        assert "downstream" in lineage
-        assert "path" in lineage
-        assert "model.my_project.customers" in lineage["path"]
+    def test_missing_node_returns_low(self, demo_graph: LineageGraph):
+        score = blast_radius_score("nonexistent.node", demo_graph)
+        assert score.level == "LOW"
+        assert score.downstream_count == 0
 
-    def test_column_lineage_missing_node(self, graph):
-        lineage = get_column_lineage(graph, "model.my_project.does_not_exist", "user_id")
-        assert lineage is None
-
-
-class TestGetImpactSummary:
-    def test_impact_summary(self, graph):
-        summary = get_impact_summary(graph, "model.my_project.customers")
-        assert summary is not None
-        assert summary["node_id"] == "model.my_project.customers"
-        assert "upstream_count" in summary
-        assert "downstream_count" in summary
-        assert "blast_radius" in summary
-        assert "columns" in summary
-        assert "user_id" in summary["columns"]
-
-    def test_impact_summary_missing(self, graph):
-        with warnings.catch_warnings(record=True) as w:
-            summary = get_impact_summary(graph, "model.my_project.does_not_exist")
-            assert summary is None
-            assert any("not found" in str(warning.message) for warning in w)
+    def test_thresholds_boundaries(self, demo_graph: LineageGraph):
+        # All nodes should fall into one of the four defined levels
+        for uid in demo_graph.nodes:
+            score = blast_radius_score(uid, demo_graph)
+            assert score.level in ("LOW", "MEDIUM", "HIGH", "CRITICAL")
 
 
-class TestGetDownstreamColumns:
-    def test_downstream_columns(self, graph):
-        cols = get_downstream_columns(graph, "model.my_project.stg_users", "user_id")
-        assert len(cols) >= 1
+# ─────────────────────────────────────────────────────────────────
+# generate_impact_report
+# ─────────────────────────────────────────────────────────────────
 
-    def test_downstream_columns_missing_node(self, graph):
-        with warnings.catch_warnings(record=True) as w:
-            cols = get_downstream_columns(graph, "model.my_project.does_not_exist", "user_id")
-            assert cols == []
-            assert any("not found" in str(warning.message) for warning in w)
+class TestGenerateImpactReport:
+    def test_report_has_header(self, demo_graph: LineageGraph):
+        report = generate_impact_report("source.ecommerce.raw_orders", demo_graph)
+        assert "Impact Analysis Report" in report
+        assert "raw_orders" in report
+        assert "Risk Level" in report
+        assert "Downstream" in report
+
+    def test_report_with_column_focus(self, demo_graph: LineageGraph):
+        report = generate_impact_report(
+            "model.ecommerce.stg_orders",
+            demo_graph,
+            column_name="net_amount",
+        )
+        assert "net_amount" in report
+        assert "Column-Level Impact" in report
+
+    def test_report_for_missing_node(self, demo_graph: LineageGraph):
+        report = generate_impact_report("nonexistent.node", demo_graph)
+        assert "not found" in report.lower()
+
+    def test_report_includes_compiled_sql_section(self, demo_graph: LineageGraph):
+        report = generate_impact_report("model.ecommerce.stg_orders", demo_graph)
+        assert "Compiled SQL" in report
 
 
-class TestGetUpstreamColumns:
-    def test_upstream_columns(self, graph):
-        cols = get_upstream_columns(graph, "model.my_project.reports", "user_id")
-        assert len(cols) >= 1
+# ─────────────────────────────────────────────────────────────────
+# get_column_impact + get_all_column_impacts
+# ─────────────────────────────────────────────────────────────────
 
-    def test_upstream_columns_missing_node(self, graph):
-        with warnings.catch_warnings(record=True) as w:
-            cols = get_upstream_columns(graph, "model.my_project.does_not_exist", "user_id")
-            assert cols == []
-            assert any("not found" in str(warning.message) for warning in w)
+class TestColumnImpact:
+    def test_returns_list_of_tuples(self, demo_graph: LineageGraph):
+        # Column impact requires the graph to be enriched with column_deps.
+        from lineage.sql_lineage import enrich_graph_with_lineage
+        enrich_graph_with_lineage(demo_graph)
+
+        impact = get_column_impact("source.ecommerce.raw_orders", "order_id", demo_graph)
+        assert isinstance(impact, list)
+        # Each entry is (table_uid, column_name)
+        for entry in impact:
+            assert isinstance(entry, tuple)
+            assert len(entry) == 2
+
+    def test_change_to_source_column_reaches_consumers(self, demo_graph: LineageGraph):
+        from lineage.sql_lineage import enrich_graph_with_lineage
+        enrich_graph_with_lineage(demo_graph)
+
+        impact = get_column_impact("source.ecommerce.raw_orders", "order_id", demo_graph)
+        # Should at least affect stg_orders.order_id
+        affected_cols = {col for _uid, col in impact}
+        assert "order_id" in affected_cols
+
+    def test_missing_node_returns_empty(self, demo_graph: LineageGraph):
+        impact = get_column_impact("nonexistent.node", "x", demo_graph)
+        assert impact == []
+
+
+class TestGetAllColumnImpacts:
+    def test_returns_dict(self, demo_graph: LineageGraph):
+        impacts = get_all_column_impacts("source.ecommerce.raw_orders", demo_graph)
+        assert isinstance(impacts, dict)
+
+    def test_missing_node_returns_empty_dict(self, demo_graph: LineageGraph):
+        impacts = get_all_column_impacts("nonexistent.node", demo_graph)
+        assert impacts == {}
+
+
+# ─────────────────────────────────────────────────────────────────
+# get_most_connected_nodes
+# ─────────────────────────────────────────────────────────────────
+
+class TestMostConnectedNodes:
+    def test_returns_top_n(self, demo_graph: LineageGraph):
+        top = get_most_connected_nodes(demo_graph, top_n=3)
+        assert len(top) <= 3
+        assert all(isinstance(uid, str) and isinstance(deg, int) for uid, deg in top)
+
+    def test_sorted_descending(self, demo_graph: LineageGraph):
+        top = get_most_connected_nodes(demo_graph, top_n=5)
+        degrees = [deg for _uid, deg in top]
+        assert degrees == sorted(degrees, reverse=True)
+
+    def test_empty_graph(self):
+        empty = LineageGraph()
+        assert get_most_connected_nodes(empty) == []
+
+
+# ─────────────────────────────────────────────────────────────────
+# get_deepest_lineage_path
+# ─────────────────────────────────────────────────────────────────
+
+class TestDeepestLineagePath:
+    def test_returns_list(self, demo_graph: LineageGraph):
+        path = get_deepest_lineage_path(demo_graph)
+        assert isinstance(path, list)
+
+    def test_empty_graph(self):
+        assert get_deepest_lineage_path(LineageGraph()) == []

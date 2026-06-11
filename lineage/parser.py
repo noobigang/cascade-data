@@ -10,16 +10,19 @@ from pathlib import Path
 from lineage.models import ColumnNode, LineageGraph, TableNode
 
 
+# Resource types we surface in the lineage graph. dbt also emits test.* and
+# metric.* nodes — they're metadata, not data, so we drop them.
+_LINEAGE_RESOURCE_TYPES = frozenset({"model", "source", "seed", "snapshot"})
+
+
 def _parse_resource_type(unique_id: str) -> str:
-    """Extract resource type prefix from a dbt unique_id."""
-    prefix = unique_id.split(".")[0]
-    type_map = {
-        "model": "model",
-        "source": "source",
-        "seed": "seed",
-        "snapshot": "snapshot",
-    }
-    return type_map.get(prefix, "model")
+    """Extract resource type prefix from a dbt unique_id.
+
+    Returns the prefix as-is (model/source/seed/snapshot/test/metric/...).
+    Callers should filter against `_LINEAGE_RESOURCE_TYPES` to decide whether
+    the node belongs in the lineage graph.
+    """
+    return unique_id.split(".")[0]
 
 
 def _build_unique_id_table(manifest: dict) -> dict[str, dict]:
@@ -103,10 +106,14 @@ def parse_manifest(
 
     # Parse all nodes (models, seeds, snapshots)
     for uid, node_dict in manifest.get("nodes", {}).items():
+        if _parse_resource_type(uid) not in _LINEAGE_RESOURCE_TYPES:
+            continue
         _parse_node(uid, node_dict, catalog, graph)
 
     # Parse sources
     for uid, src_dict in manifest.get("sources", {}).items():
+        if _parse_resource_type(uid) not in _LINEAGE_RESOURCE_TYPES:
+            continue
         _parse_node(uid, src_dict, catalog, graph)
 
     # Build edges from depends_on
@@ -194,9 +201,13 @@ def parse_manifest_from_dict(manifest: dict, catalog: dict | None = None) -> Lin
 
     # Parse nodes
     for uid, node_dict in manifest.get("nodes", {}).items():
+        if _parse_resource_type(uid) not in _LINEAGE_RESOURCE_TYPES:
+            continue
         _parse_node(uid, node_dict, catalog_lookup, graph)
 
     for uid, src_dict in manifest.get("sources", {}).items():
+        if _parse_resource_type(uid) not in _LINEAGE_RESOURCE_TYPES:
+            continue
         _parse_node(uid, src_dict, catalog_lookup, graph)
 
     # Build edges

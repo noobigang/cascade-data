@@ -111,11 +111,23 @@ class LineageGraph:
         self._graph.remove_node(unique_id)
 
     def predecessors(self, unique_id: str) -> list[str]:
-        """Get direct upstream dependencies (predecessors in DAG)."""
+        """Get direct upstream dependencies (predecessors in DAG).
+
+        Returns an empty list if the node isn't in the graph, rather than
+        raising — this matches the contract of get_upstream/get_downstream
+        in lineage.impact and keeps callers from having to guard.
+        """
+        if unique_id not in self._node_data:
+            return []
         return list(self._graph.predecessors(unique_id))
 
     def successors(self, unique_id: str) -> list[str]:
-        """Get direct downstream dependents (successors in DAG)."""
+        """Get direct downstream dependents (successors in DAG).
+
+        Returns an empty list if the node isn't in the graph.
+        """
+        if unique_id not in self._node_data:
+            return []
         return list(self._graph.successors(unique_id))
 
     def ancestors(self, unique_id: str) -> set[str]:

@@ -91,38 +91,67 @@ def get_column_impact(
     Get all (table_uid, column_name) pairs affected by a change to
     the specified column in the given table.
 
+    A column ``column_name`` in ``node_uid`` is affected downstream when a
+    downstream model's column is derived from it. We propagate the impact
+    transitively: if ``stg_orders.order_id`` depends on ``raw_orders.order_id``
+    and ``fct_orders.order_id`` depends on ``stg_orders.order_id``, changing
+    ``raw_orders.order_id`` will affect *both* downstream columns.
+
+    If the downstream model is not enriched with column-level lineage (i.e.
+    ``column_deps`` is empty for that node), we fall back to table-level
+    propagation: every column in the model is treated as potentially
+    affected, because without column metadata we can't be more precise.
+
     Args:
         node_uid: The unique_id of the table containing the changed column
         column_name: The name of the changed column
         graph: The LineageGraph to traverse
 
     Returns:
-        List of (affected_table_uid, affected_column) tuples
+        List of (affected_table_uid, affected_column) tuples, in BFS
+        distance order from the changed column.
     """
     if not graph.has_node(node_uid):
         return []
 
     affected: list[tuple[str, str]] = []
-    downstream = get_downstream(node_uid, graph)
+    seen: set[tuple[str, str]] = set()
 
-    for ds_uid in downstream:
-        node = graph.get_node(ds_uid)
-        if not node:
-            continue
+    # Queue: (current_node_uid, current_column_name)
+    # BFS so we get shortest-path impact first.
+    queue: deque[tuple[str, str]] = deque([(node_uid, column_name)])
 
-        # Check if this column flows through via column_deps
-        if column_name in node.column_deps:
-            for (src_table, src_col) in node.column_deps[column_name]:
-                if src_col == column_name and src_table == node_uid:
-                    for col_name, col_node in node.columns.items():
-                        if (column_name in col_node.source_columns or src_col in col_node.source_columns) and (ds_uid, col_name) not in affected:
-                            affected.append((ds_uid, col_name))
+    while queue:
+        cur_uid, cur_col = queue.popleft()
+        downstream = get_downstream(cur_uid, graph)
 
-        # Also check if the column is in the node's column list
-        if column_name in node.columns:
-            col = node.columns[column_name]
-            if any(column_name in src for src in col.source_columns) and (ds_uid, column_name) not in affected:
-                affected.append((ds_uid, column_name))
+        for ds_uid in downstream:
+            ds_node = graph.get_node(ds_uid)
+            if not ds_node:
+                continue
+
+            # If the downstream model has column-level lineage, find target
+            # columns that explicitly depend on (cur_uid, cur_col).
+            if ds_node.column_deps:
+                for target_col, sources in ds_node.column_deps.items():
+                    for (src_table, src_col) in sources:
+                        if src_table == cur_uid and src_col == cur_col:
+                            key = (ds_uid, target_col)
+                            if key not in seen:
+                                seen.add(key)
+                                affected.append(key)
+                                # Propagate transitively: a change to
+                                # (ds_uid, target_col) might further affect
+                                # its own downstream.
+                                queue.append((ds_uid, target_col))
+            else:
+                # No column metadata: assume the whole table is affected.
+                for target_col in ds_node.columns:
+                    key = (ds_uid, target_col)
+                    if key not in seen:
+                        seen.add(key)
+                        affected.append(key)
+                        queue.append((ds_uid, target_col))
 
     return affected
 

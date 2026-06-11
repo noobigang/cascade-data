@@ -2,6 +2,15 @@
 Column-level lineage extraction engine for Cascade.
 """
 
+from lineage.diff import (
+    ChangeType,
+    ColumnChange,
+    ManifestDiff,
+    NodeChange,
+    Severity,
+    diff_manifest_files,
+    diff_manifests,
+)
 from lineage.impact import (
     blast_radius_score,
     generate_impact_report,
@@ -34,4 +43,12 @@ __all__ = [
     "get_all_column_impacts",
     "get_most_connected_nodes",
     "get_deepest_lineage_path",
+    # Manifest diff
+    "ChangeType",
+    "ColumnChange",
+    "ManifestDiff",
+    "NodeChange",
+    "Severity",
+    "diff_manifest_files",
+    "diff_manifests",
 ]

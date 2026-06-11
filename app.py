@@ -24,6 +24,7 @@ from ui import (
     load_demo_manifest,
     render_dag_viewer,
     render_detail_panel,
+    render_diff_panel,
     render_hero,
     render_impact_panel,
     render_sidebar,
@@ -265,6 +266,11 @@ def main():
     # Reset blast radius view after rendering
     if st.session_state.get("show_blast_radius"):
         st.session_state.show_blast_radius = None
+
+    st.divider()
+
+    # ── Manifest Diff ───────────────────────────────────────────────────────
+    render_diff_panel()
 
 
 def _render_empty_state():

@@ -215,8 +215,107 @@ class TestColumnImpact:
         affected_cols = {col for _uid, col in impact}
         assert "order_id" in affected_cols
 
+    def test_direct_consumer_appears(self, demo_graph: LineageGraph):
+        """A column in a directly downstream model is in the impact set."""
+        from lineage.sql_lineage import enrich_graph_with_lineage
+        enrich_graph_with_lineage(demo_graph)
+
+        impact = get_column_impact("source.ecommerce.raw_orders", "order_id", demo_graph)
+        affected = {(uid, col) for uid, col in impact}
+        # stg_orders.order_id is derived from raw_orders.order_id
+        assert ("model.ecommerce.stg_orders", "order_id") in affected
+
+    def test_transitive_propagation(self, demo_graph: LineageGraph):
+        """A column change in a source reaches all transitive consumers.
+
+        e.g. raw_orders.order_id -> stg_orders.order_id -> int_order_items.order_id.
+        Both stg_orders.order_id AND int_order_items.order_id should be in the
+        impact set. The old (broken) implementation only walked one hop.
+        """
+        from lineage.sql_lineage import enrich_graph_with_lineage
+        enrich_graph_with_lineage(demo_graph)
+
+        impact = get_column_impact("source.ecommerce.raw_orders", "order_id", demo_graph)
+        affected = {(uid, col) for uid, col in impact}
+        # Direct consumer
+        assert ("model.ecommerce.stg_orders", "order_id") in affected
+        # Transitive consumer (2 hops down) where the column name is preserved
+        assert ("model.ecommerce.int_order_items", "order_id") in affected
+
+    def test_transitive_propagation_through_aliased_column(self, demo_graph: LineageGraph):
+        """Propagation also reaches columns that are aliased through
+        intermediate models.
+
+        raw_orders.order_id -> stg_orders.order_id -> int_order_enrichment.o.order_id
+        (the int_order_enrichment model aliases the column to `o.order_id`).
+        """
+        from lineage.sql_lineage import enrich_graph_with_lineage
+        enrich_graph_with_lineage(demo_graph)
+
+        impact = get_column_impact("source.ecommerce.raw_orders", "order_id", demo_graph)
+        affected = {(uid, col) for uid, col in impact}
+        assert ("model.ecommerce.int_order_enrichment", "o.order_id") in affected
+
+    def test_unrelated_column_not_affected(self, demo_graph: LineageGraph):
+        """A column that doesn't flow from the source is NOT in the impact set."""
+        from lineage.sql_lineage import enrich_graph_with_lineage
+        enrich_graph_with_lineage(demo_graph)
+
+        impact = get_column_impact("source.ecommerce.raw_orders", "order_id", demo_graph)
+        affected = {(uid, col) for uid, col in impact}
+        # stg_customers has full_name, which comes from first_name + last_name,
+        # NOT from raw_orders.order_id. Even though stg_customers is in the
+        # graph, (stg_customers, full_name) should not be in the impact set.
+        assert ("model.ecommerce.stg_customers", "full_name") not in affected
+
+    def test_column_with_derived_expression(self, demo_graph: LineageGraph):
+        """net_amount in stg_orders derives from total_amount + discount_amount.
+
+        Changing raw_orders.total_amount should affect stg_orders.net_amount
+        (and transitively any downstream that consumes net_amount).
+        """
+        from lineage.sql_lineage import enrich_graph_with_lineage
+        enrich_graph_with_lineage(demo_graph)
+
+        impact = get_column_impact(
+            "source.ecommerce.raw_orders", "total_amount", demo_graph
+        )
+        affected = {(uid, col) for uid, col in impact}
+        assert ("model.ecommerce.stg_orders", "net_amount") in affected
+
+    def test_impact_is_deduplicated(self, demo_graph: LineageGraph):
+        """Same (table, column) should never appear twice even with cycles or
+        multi-source convergence."""
+        from lineage.sql_lineage import enrich_graph_with_lineage
+        enrich_graph_with_lineage(demo_graph)
+
+        impact = get_column_impact("source.ecommerce.raw_orders", "order_id", demo_graph)
+        # No duplicates allowed
+        assert len(impact) == len(set(impact))
+
+    def test_does_not_affect_upstream(self, demo_graph: LineageGraph):
+        """Column impact only flows DOWNSTREAM, not upstream."""
+        from lineage.sql_lineage import enrich_graph_with_lineage
+        enrich_graph_with_lineage(demo_graph)
+
+        impact = get_column_impact("model.ecommerce.stg_orders", "order_id", demo_graph)
+        affected_uids = {uid for uid, _col in impact}
+        # raw_orders is upstream of stg_orders — must not appear
+        assert "source.ecommerce.raw_orders" not in affected_uids
+
     def test_missing_node_returns_empty(self, demo_graph: LineageGraph):
         impact = get_column_impact("nonexistent.node", "x", demo_graph)
+        assert impact == []
+
+    def test_column_with_no_consumers_returns_empty(self, demo_graph: LineageGraph):
+        """A column on a leaf node has no downstream impact."""
+        from lineage.sql_lineage import enrich_graph_with_lineage
+        enrich_graph_with_lineage(demo_graph)
+
+        # dim_products is a leaf (no downstream)
+        impact = get_column_impact(
+            "model.ecommerce.dim_products", "product_name", demo_graph
+        )
         assert impact == []
 
 

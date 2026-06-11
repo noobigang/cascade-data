@@ -401,6 +401,73 @@ details[open] > summary > span > span:first-child::before {
     border: 1px solid #30363D;
 }
 
+/* ── Impact analysis cards (blast-radius) ─────────────────────────────── */
+.cascade-impact-card {
+    background: #161B22;
+    border: 1px solid #30363D;
+    border-left: 4px solid #30363D;
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin: 12px 0;
+    transition: border-color 0.15s ease;
+}
+.cascade-impact-card.low        { border-left-color: #39D353; }
+.cascade-impact-card.medium     { border-left-color: #D29922; }
+.cascade-impact-card.high       { border-left-color: #F85149; }
+.cascade-impact-card.critical   { border-left-color: #F85149; animation: pulse 2s ease-in-out infinite; }
+.cascade-impact-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 14px;
+}
+.cascade-impact-emoji {
+    font-size: 36px;
+    line-height: 1;
+}
+.cascade-impact-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px;
+    font-weight: 700;
+    color: #E6EDF3;
+}
+.cascade-impact-target {
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    color: #8B949E;
+    margin-top: 2px;
+}
+.cascade-impact-target code {
+    background: #0D1117;
+    color: #79B8FF;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    border: 1px solid #30363D;
+}
+.cascade-impact-stats {
+    display: flex;
+    gap: 24px;
+    padding-top: 8px;
+    border-top: 1px solid #21262D;
+}
+.cascade-impact-stat-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 28px;
+    font-weight: 700;
+    color: #E6EDF3;
+    line-height: 1;
+}
+.cascade-impact-stat-label {
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    color: #8B949E;
+    margin-top: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
 /* Dataframe styling */
 .streamlit-dataframe {
     background: #161B22 !important;
